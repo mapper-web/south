@@ -976,7 +976,10 @@ function buildDirections(res, fromRoom, toRoom){
 }
 function roomTitle(r){
   if (!r) return 'your destination';
-  if (r._as) return r._as + (r.code && r.codeSrc !== 'ocr' ? ' (' + r.code + ')' : '');
+  if (r._as){
+    const g = r.gender ? ', ' + (r.gender === 'all-gender' ? 'all gender' : r.gender + "'s") : '';
+    return r._as + g + (r.code && r.codeSrc !== 'ocr' ? ' (' + r.code + ')' : '');
+  }
   if (r.kind === 'entrance') return r.name;
   if (r.name && r.code) return r.name + ' (' + r.code + ')';
   return r.name || r.code || TYPE_LABEL[r.type];
@@ -1083,7 +1086,9 @@ function selectRoom(fid, rid){
   let h = '<div class="card"><h3>' + (r.name || TYPE_LABEL[r.type]) + '</h3>';
   h += '<div class="code">' + (r.code || 'no code read') + ' · ' + f.name + '</div>';
   h += '<dl class="kv">';
-  h += '<dt>Type</dt><dd>' + TYPE_LABEL[r.type] + '</dd>';
+  h += '<dt>Type</dt><dd>' + TYPE_LABEL[r.type] +
+       (r.gender ? ' · ' + (r.gender === 'all-gender' ? 'all gender'
+                                                     : r.gender + "'s") : '') + '</dd>';
   if (aliases.length) h += '<dt>Also called</dt><dd>' + aliases.join(', ') + '</dd>';
   if (r.note) h += '<dt>Note</dt><dd>' + r.note +
     (r.noteSrc ? ' <span style="color:var(--ink-3)">(' + r.noteSrc + ')</span>' : '') + '</dd>';
@@ -1332,7 +1337,8 @@ function doNearest(cat){
   pick.to = t.ent ? {fid:t.fid, ent:t.ent, as:spec.title}
                   : {fid:t.fid, rid:t.rid, as:spec.title};
   const B = endpoint(pick.to);
-  inputs.to.value = spec.title + (B.code && B.codeSrc !== 'ocr' ? ' — ' + B.code : '');
+  const g = B.gender ? ' (' + (B.gender === 'all-gender' ? 'all gender' : B.gender + "'s") + ')' : '';
+  inputs.to.value = spec.title + g + (B.code && B.codeSrc !== 'ocr' ? ' — ' + B.code : '');
   clears.to.hidden = false;
   updateGo();
   doRoute();
