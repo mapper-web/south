@@ -1,0 +1,1386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>South Campus Wayfinder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#16191d; --ink-2:#4a545e; --ink-3:#7b8792;
+  --paper:#e7ebee; --panel:#ffffff; --edge:#ccd4da; --edge-2:#e4e9ed;
+  --maroon:#7e1c33; --maroon-ink:#5d1425; --maroon-soft:#f3e4e8;
+  --start:#1b6fa8; --end:#1f7a44; --warn:#a45a06; --warn-soft:#fdf1de;
+  --focus:#1b6fa8;
+  --f-classroom:#b1febc; --f-lab:#cbffa0; --f-office:#f8c9a5; --f-service:#abbff0;
+  --f-vertical:#fdff9f; --f-utility:#f4a9b2; --f-restroom:#a7fdfe; --f-large:#ff99ff;
+  --f-circ:#dfe4e8;
+  --display:'Archivo',ui-sans-serif,system-ui,'Helvetica Neue',Arial,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --r:6px; --shadow:0 1px 2px rgba(22,25,29,.08),0 6px 20px rgba(22,25,29,.07);
+  --wall:#2b3238; --wall-2:#b9c2c9; --label:#3b444c; --halo:#fff; --guess:#7a6a2e;
+  --casing:#fff; --surface-2:#f6f8f9; --note-bg:#f4f7f8; --input-bg:#fbfcfd;
+  --on-accent:#fff; --void:#dde3e7; --ok-soft:#e5f3ea; --info-soft:#e6eef5;
+  --route:var(--maroon);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{
+  font-family:var(--display); color:var(--ink); background:var(--paper);
+  font-size:15px; line-height:1.45; -webkit-font-smoothing:antialiased;
+  display:flex; flex-direction:column; overflow:hidden;
+}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--focus); outline-offset:2px}
+
+/* ---------- header ---------- */
+header{
+  background:var(--panel); border-bottom:1px solid var(--edge);
+  padding:10px 16px; display:flex; gap:16px; align-items:center; flex-wrap:wrap;
+  z-index:20;
+}
+.brand{display:flex;align-items:baseline;gap:9px;margin-right:4px}
+.brand b{font-weight:700;letter-spacing:-.015em;font-size:16px}
+.brand span{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-3)}
+.plate{
+  font-family:var(--mono);font-size:11px;font-weight:600;color:#fff;background:var(--maroon);
+  padding:2px 6px;border-radius:3px;letter-spacing:.04em;
+}
+.routebar{display:flex;gap:8px;align-items:center;flex:1;min-width:280px;flex-wrap:wrap}
+.field{position:relative;flex:1;min-width:150px}
+.field label{
+  position:absolute;left:9px;top:-7px;background:var(--panel);padding:0 4px;
+  font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:var(--ink-3);font-weight:600;
+}
+.field input{
+  width:100%;padding:9px 28px 9px 10px;border:1px solid var(--edge);border-radius:var(--r);
+  background:var(--input-bg);
+}
+.field .clear{
+  position:absolute;right:4px;top:50%;transform:translateY(-50%);border:0;background:none;
+  color:var(--ink-3);cursor:pointer;padding:4px 6px;border-radius:4px;line-height:1;
+}
+.field .clear:hover{background:var(--edge-2);color:var(--ink)}
+.menu{
+  position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--panel);
+  border:1px solid var(--edge);border-radius:var(--r);box-shadow:var(--shadow);
+  max-height:320px;overflow:auto;z-index:40;display:none;
+}
+.menu.open{display:block}
+.menu button{
+  display:flex;width:100%;gap:10px;align-items:baseline;text-align:left;border:0;background:none;
+  padding:8px 10px;cursor:pointer;border-bottom:1px solid var(--edge-2);
+}
+.menu button:last-child{border-bottom:0}
+.menu button:hover,.menu button[aria-selected=true]{background:var(--maroon-soft)}
+.menu .code{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--maroon);min-width:48px}
+.menu .nm{flex:1}
+.menu .loc{font-size:11px;color:var(--ink-3);white-space:nowrap}
+.menu .none{padding:10px;color:var(--ink-3);font-size:13px}
+.go{
+  background:var(--maroon);color:var(--on-accent);border:0;padding:10px 16px;border-radius:var(--r);
+  font-weight:600;cursor:pointer;white-space:nowrap;
+}
+.go:hover{background:var(--maroon-ink)}
+.go:disabled{background:#b9c2ca;cursor:not-allowed}
+.toggle{display:flex;align-items:center;gap:7px;font-size:13px;white-space:nowrap;cursor:pointer;color:var(--ink-2)}
+.toggle input{width:16px;height:16px;accent-color:var(--maroon);margin:0}
+
+/* ---------- layout ---------- */
+main{flex:1;display:flex;min-height:0;position:relative}
+#mapwrap{flex:1;position:relative;overflow:hidden;background:var(--paper);touch-action:none}
+svg#map{width:100%;height:100%;display:block;cursor:grab}
+svg#map.dragging{cursor:grabbing}
+.room{stroke:var(--wall);stroke-width:1.1;vector-effect:non-scaling-stroke;cursor:pointer}
+.room:hover{stroke:var(--maroon);stroke-width:2.4}
+.room.sel{stroke:var(--maroon);stroke-width:3}
+.circ{fill:var(--f-circ);stroke:var(--wall-2);stroke-width:.8;vector-effect:non-scaling-stroke;pointer-events:none}
+.rlabel{font-family:var(--mono);font-size:9px;fill:var(--label);text-anchor:middle;pointer-events:none;paint-order:stroke;stroke:var(--halo);stroke-width:2.4px}
+.rlabel.guess{fill:var(--guess)}
+.route-casing{fill:none;stroke:var(--casing);stroke-width:9;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+.route-line{fill:none;stroke:var(--route);stroke-width:5;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+.route-line.dash{stroke-dasharray:9 7}
+.pin{pointer-events:none}
+@media (prefers-reduced-motion:no-preference){
+  .pulse{animation:pulse 2s ease-out infinite}
+  @keyframes pulse{0%{r:7;opacity:.55}70%{r:19;opacity:0}100%{r:19;opacity:0}}
+}
+.zoomers{position:absolute;right:12px;bottom:12px;display:flex;flex-direction:column;gap:6px;z-index:10}
+.zoomers button{
+  width:34px;height:34px;border:1px solid var(--edge);background:var(--panel);border-radius:var(--r);
+  cursor:pointer;font-size:16px;line-height:1;box-shadow:var(--shadow);
+}
+.zoomers button:hover{background:var(--maroon-soft)}
+.floortag{
+  position:absolute;left:12px;top:12px;background:var(--panel);border:1px solid var(--edge);
+  border-radius:var(--r);padding:6px 10px;box-shadow:var(--shadow);z-index:10;
+}
+.floortag b{font-size:14px}
+.floortag div{font-size:11px;color:var(--ink-3);font-family:var(--mono)}
+
+/* ---------- side panel ---------- */
+aside{
+  width:340px;flex:none;background:var(--panel);border-left:1px solid var(--edge);
+  display:flex;flex-direction:column;min-height:0;
+}
+.tabs{display:flex;border-bottom:1px solid var(--edge)}
+.tabs button{
+  flex:1;border:0;background:none;padding:11px 6px;cursor:pointer;font-size:12px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.07em;color:var(--ink-3);border-bottom:2px solid transparent;
+}
+.tabs button[aria-selected=true]{color:var(--maroon);border-bottom-color:var(--maroon)}
+.pane{flex:1;overflow:auto;padding:14px}
+.pane[hidden]{display:none}
+.empty{color:var(--ink-3);font-size:13px;padding:6px 0}
+h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;color:var(--ink-3);margin:0 0 8px;font-weight:600}
+h2+h2{margin-top:18px}
+
+/* stack */
+.stack{display:grid;gap:3px;margin-bottom:6px}
+.stackrow{display:grid;grid-template-columns:26px repeat(5,1fr);gap:3px;align-items:stretch}
+.stacklabel{font-family:var(--mono);font-size:11px;color:var(--ink-3);display:flex;align-items:center;justify-content:flex-end;padding-right:3px}
+.cell{
+  border:1px solid var(--edge);border-radius:3px;background:var(--surface-2);min-height:30px;
+  display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;
+  color:var(--ink-3);cursor:pointer;padding:0;
+}
+.cell.void{background:transparent;border:1px dashed var(--void);cursor:default;color:#c3cbd1}
+.cell.on{background:var(--maroon);border-color:var(--maroon);color:#fff;font-weight:600}
+.cell.inroute{background:var(--maroon-soft);border-color:var(--maroon);color:var(--maroon-ink);font-weight:600}
+.cell:not(.void):hover{border-color:var(--maroon)}
+.stackhead{display:grid;grid-template-columns:26px repeat(5,1fr);gap:3px;margin-bottom:4px}
+.stackhead span{text-align:center;font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--ink-2)}
+.stackhead span:first-child{content:''}
+.note{font-size:12px;color:var(--ink-2);background:var(--note-bg);border-left:3px solid var(--edge);padding:8px 10px;border-radius:0 var(--r) var(--r) 0;margin:10px 0}
+.note.warn{background:var(--warn-soft);border-left-color:var(--warn)}
+
+/* directions */
+.leg{border:1px solid var(--edge);border-radius:var(--r);margin-bottom:10px;overflow:hidden}
+.leg>button{
+  width:100%;display:flex;justify-content:space-between;gap:8px;align-items:center;text-align:left;
+  background:var(--surface-2);border:0;border-bottom:1px solid var(--edge);padding:9px 10px;cursor:pointer;font-weight:600;font-size:13px;
+}
+.leg>button:hover{background:var(--maroon-soft)}
+.leg>button .fl{font-family:var(--mono);font-size:11px;color:var(--maroon);font-weight:600}
+ol.steps{list-style:none;margin:0;padding:4px 0}
+ol.steps li{display:flex;gap:9px;padding:7px 10px;font-size:13.5px;border-bottom:1px solid var(--edge-2)}
+ol.steps li:last-child{border-bottom:0}
+.icon{
+  flex:none;width:20px;height:20px;border-radius:50%;background:var(--maroon-soft);color:var(--maroon-ink);
+  display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;margin-top:1px;
+}
+.icon.v{background:var(--info-soft);color:var(--start)}
+.icon.w{background:var(--warn-soft);color:var(--warn)}
+.dist{color:var(--ink-3);font-size:12px;font-family:var(--mono)}
+.summary{display:flex;gap:14px;margin-bottom:12px;padding:10px;background:var(--surface-2);border-radius:var(--r)}
+.summary div{font-size:12px;color:var(--ink-3)}
+.summary b{display:block;font-size:17px;color:var(--ink);font-family:var(--mono)}
+
+/* room card */
+.card h3{margin:0 0 2px;font-size:17px}
+.card .code{font-family:var(--mono);color:var(--maroon);font-weight:600;font-size:13px}
+.kv{display:grid;grid-template-columns:88px 1fr;gap:4px 10px;font-size:13px;margin:10px 0}
+.kv dt{color:var(--ink-3)}
+.kv dd{margin:0}
+.badge{display:inline-block;font-size:11px;font-weight:600;padding:2px 7px;border-radius:99px;background:var(--warn-soft);color:var(--warn)}
+.badge.ok{background:var(--ok-soft);color:var(--end)}
+.rowbtns{display:flex;gap:8px;margin-top:12px}
+.rowbtns button{
+  flex:1;border:1px solid var(--edge);background:var(--panel);padding:8px;border-radius:var(--r);
+  cursor:pointer;font-size:13px;font-weight:600;
+}
+.rowbtns button:hover{border-color:var(--maroon);color:var(--maroon)}
+
+/* legend */
+.legend{display:grid;grid-template-columns:1fr 1fr;gap:5px 10px;font-size:12px}
+.legend span{display:flex;align-items:center;gap:6px;color:var(--ink-2)}
+.legend i{width:13px;height:13px;border:1px solid var(--wall);border-radius:2px;flex:none}
+.qual{font-size:12.5px}
+.qual table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11.5px}
+.qual td{padding:3px 0;border-bottom:1px solid var(--edge-2)}
+.qual td:last-child{text-align:right;font-weight:600}
+
+/* mobile */
+.sheetgrip{display:none}
+@media (max-width:860px){
+  main{flex-direction:column}
+  aside{
+    width:auto;border-left:0;border-top:1px solid var(--edge);
+    position:absolute;left:0;right:0;bottom:0;max-height:62%;
+    border-radius:12px 12px 0 0;box-shadow:0 -6px 24px rgba(22,25,29,.12);z-index:15;
+  }
+  aside.collapsed .tabs,aside.collapsed .pane{display:none}
+  .sheetgrip{
+    display:flex;justify-content:center;padding:7px 0 4px;cursor:pointer;
+    border-radius:12px 12px 0 0;background:var(--panel);
+  }
+  .sheetgrip i{width:38px;height:4px;border-radius:99px;background:var(--edge)}
+  header{gap:10px;padding:9px 12px}
+  .brand{width:100%}
+  aside{padding-bottom:env(safe-area-inset-bottom)}
+}
+
+html[data-theme="light"]{color-scheme:light}
+html[data-theme="dark"]{
+  color-scheme:dark;
+  --ink:#e6ebef; --ink-2:#a9b4bd; --ink-3:#7f8b95;
+  --paper:#13171b; --panel:#1c2127; --edge:#2f363d; --edge-2:#252b31;
+  --maroon:#ef6b88; --maroon-ink:#ff8fa6; --maroon-soft:#33222a; --on-accent:#15181c;
+  --route:#ffa3b6;
+  --start:#5aa9e0; --end:#4fd18a; --warn:#e8a33c; --warn-soft:#33280f;
+  --yes:#4fd18a; --yes-soft:#12301f; --no:#f0866c; --no-soft:#331b15;
+  --focus:#5aa9e0;
+  --wall:#a6b0b8; --wall-2:#4e5860; --label:#d3dae0; --halo:#11151a; --guess:#d9c26a;
+  --casing:#0d1116; --surface-2:#20262c; --note-bg:#1e242a; --input-bg:#171c21;
+  --void:#2a3138; --ok-soft:#12301f; --info-soft:#15242f;
+  --f-classroom:#20512f; --f-lab:#3d5320; --f-office:#603c22; --f-service:#283a66;
+  --f-vertical:#58521c; --f-utility:#5f2833; --f-restroom:#154d50; --f-large:#512254;
+  --f-circ:#272d34;
+  --shadow:0 1px 2px rgba(0,0,0,.55),0 6px 20px rgba(0,0,0,.45);
+}
+.themetog{
+  width:34px;height:34px;flex:none;border:1px solid var(--edge);background:var(--panel);
+  border-radius:var(--r);cursor:pointer;font-size:15px;line-height:1;color:var(--ink-2);
+}
+.themetog:hover{border-color:var(--maroon);color:var(--maroon)}
+
+
+.disclaim{
+  display:flex;align-items:center;justify-content:center;gap:7px;flex-wrap:wrap;
+  padding:5px 10px;background:var(--warn-soft);border-bottom:1px solid var(--edge);
+  font-size:11.5px;color:var(--warn);text-align:center;
+}
+.disclaim button{
+  border:1px solid currentColor;background:none;color:inherit;font:inherit;font-weight:700;
+  padding:1px 7px;border-radius:99px;cursor:pointer;
+}
+.abp{font-size:13.5px;color:var(--ink-2);margin:0 0 10px;line-height:1.5}
+.abp b{color:var(--ink)}
+.abp a{color:var(--maroon);font-weight:600}
+.plate.un{background:var(--warn)}
+.sitenav{flex:none;background:var(--panel);border-top:1px solid var(--edge)}
+.navmain{display:flex;gap:4px;justify-content:center;padding:5px 8px;
+  padding-bottom:calc(5px + env(safe-area-inset-bottom))}
+.navbtn{
+  flex:1;max-width:150px;display:flex;flex-direction:column;align-items:center;gap:1px;
+  padding:6px 4px;border:0;border-radius:8px;background:none;cursor:pointer;
+  font-size:11.5px;font-weight:600;text-decoration:none;color:var(--ink-3);font-family:inherit;
+}
+.navbtn .ni{font-size:16px;line-height:1.1}
+.navbtn:hover{background:var(--maroon-soft);color:var(--maroon)}
+.navbtn[aria-current=page]{color:var(--maroon)}
+.navbtn[aria-expanded=true]{background:var(--maroon-soft);color:var(--maroon)}
+.navtools{display:flex;gap:6px;padding:8px 8px 2px;border-bottom:1px solid var(--edge-2)}
+.navtools[hidden]{display:none}
+.navtools a{
+  flex:1;display:flex;flex-direction:column;gap:1px;padding:8px 10px;border:1px solid var(--edge);
+  border-radius:8px;text-decoration:none;color:var(--ink-2);background:var(--surface-2);
+}
+.navtools a b{font-size:13px;color:var(--ink)}
+.navtools a em{font-size:11px;font-style:normal;color:var(--ink-3)}
+.navtools a:hover{border-color:var(--maroon)}
+.navtools a[aria-current=page]{border-color:var(--maroon);background:var(--maroon-soft)}
+.navtools a[aria-current=page] b{color:var(--maroon)}
+
+.floorsheet{position:fixed;inset:0;z-index:200;display:flex;align-items:flex-end}
+.floorsheet[hidden]{display:none}
+.fsback{position:absolute;inset:0;background:rgba(10,13,16,.5)}
+.fspanel{
+  position:relative;width:100%;max-width:520px;margin:0 auto;background:var(--panel);
+  border-radius:14px 14px 0 0;padding:12px 14px calc(14px + env(safe-area-inset-bottom));
+  box-shadow:0 -6px 30px rgba(0,0,0,.3);max-height:80vh;overflow:auto;
+}
+.fshead{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.fshead b{font-size:16px}
+.fshead button{width:34px;height:34px;border:1px solid var(--edge);background:var(--panel);
+  border-radius:8px;font-size:19px;line-height:1;cursor:pointer;color:var(--ink-2)}
+.fsgrid{display:grid;gap:4px}
+.fsrow{display:grid;grid-template-columns:26px repeat(5,1fr);gap:4px}
+.fsrow .lbl{display:flex;align-items:center;justify-content:flex-end;padding-right:3px;
+  font-family:var(--mono);font-size:12px;color:var(--ink-3)}
+.fsgrid button{
+  min-height:44px;border:1px solid var(--edge);background:var(--surface-2);border-radius:8px;
+  font-family:var(--mono);font-size:13px;font-weight:600;color:var(--ink-2);cursor:pointer;
+}
+.fsgrid button:hover{border-color:var(--maroon);color:var(--maroon)}
+.fsgrid button[aria-current=true]{background:var(--maroon);border-color:var(--maroon);color:var(--on-accent)}
+.fsgrid .void{min-height:44px;border:1px dashed var(--edge-2);border-radius:8px;
+  display:flex;align-items:center;justify-content:center;color:var(--ink-3);font-size:12px}
+.fshdr{display:grid;grid-template-columns:26px repeat(5,1fr);gap:4px;margin-bottom:2px}
+.fshdr span{text-align:center;font-size:12px;font-weight:700;color:var(--ink-2)}
+.fsnote{font-size:12.5px;color:var(--ink-2);background:var(--note-bg);border-left:3px solid var(--edge);
+  padding:9px 11px;border-radius:0 8px 8px 0;margin:12px 0 0}
+</style>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+</head>
+<body data-page="index">
+<header>
+  <div class="brand">
+    <span class="plate un">UNOFFICIAL</span>
+    <b>South Campus Wayfinder</b>
+  </div>
+  <button class="themetog" id="themetog" title="Light or dark" aria-label="Switch between light and dark">◑</button>
+  <div class="routebar">
+    <div class="field" id="f-from">
+      <label for="i-from">I'm near</label>
+      <input id="i-from" autocomplete="off" placeholder="room, or a place like &ldquo;bookstore&rdquo;">
+      <button class="clear" title="Clear" hidden>&times;</button>
+      <div class="menu" role="listbox"></div>
+    </div>
+    <div class="field" id="f-to">
+      <label for="i-to">I need to get to</label>
+      <input id="i-to" autocomplete="off" placeholder="room, or a place like &ldquo;financial aid&rdquo;">
+      <button class="clear" title="Clear" hidden>&times;</button>
+      <div class="menu" role="listbox"></div>
+    </div>
+    <label class="toggle" title="Route without stairs">
+      <input type="checkbox" id="stepfree"> Step-free
+    </label>
+    <button class="go" id="go" disabled>Get directions</button>
+  </div>
+</header>
+
+<main>
+  <div id="mapwrap">
+    <svg id="map" role="img" aria-label="Floor plan"></svg>
+    <div class="floortag"><b id="ftname">—</b><div id="ftmeta"></div></div>
+    <div class="zoomers">
+      <button id="zin" title="Zoom in" aria-label="Zoom in">+</button>
+      <button id="zout" title="Zoom out" aria-label="Zoom out">&minus;</button>
+      <button id="zfit" title="Fit floor" aria-label="Fit floor">⤢</button>
+    </div>
+  </div>
+
+  <aside id="side">
+    <div class="sheetgrip" id="grip"><i></i></div>
+    <div class="tabs" role="tablist">
+      <button role="tab" id="tab-route" aria-selected="true" aria-controls="pane-route">Route</button>
+      <button role="tab" id="tab-floors" aria-selected="false" aria-controls="pane-floors">Floors</button>
+      <button role="tab" id="tab-info" aria-selected="false" aria-controls="pane-info">Room</button>
+      <button role="tab" id="tab-arrive" aria-selected="false" aria-controls="pane-arrive">Arrive</button>
+      <button role="tab" id="tab-data" aria-selected="false" aria-controls="pane-data">Data</button>
+    </div>
+    <div class="pane" id="pane-route" role="tabpanel"></div>
+    <div class="pane" id="pane-floors" role="tabpanel" hidden></div>
+    <div class="pane" id="pane-info" role="tabpanel" hidden></div>
+    <div class="pane" id="pane-arrive" role="tabpanel" hidden></div>
+    <div class="pane" id="pane-data" role="tabpanel" hidden></div>
+  </aside>
+</main>
+
+<script src="data/bundle.js"></script>
+<script>
+'use strict';
+const DATA = window.__BUNDLE__;
+const FLOORS = DATA.floors, ORDER = DATA.order;
+
+const TYPE_LABEL = {
+  classroom:'Classroom / lab', lab:'Computer lab / lab', office:'Office',
+  service:'Storage / support', vertical:'Stairs / elevator', utility:'Building utility',
+  restroom:'Restroom', large:'Large room', circulation:'Corridor'
+};
+const SRC_LABEL = {
+  official:'from the official plan', transcribed:'read off the colour drawing',
+  'transcribed-unconfirmed':'name needs review', ocr:'machine guess', none:'no label yet'
+};
+const TYPE_FILL = {
+  classroom:'var(--f-classroom)', lab:'var(--f-lab)', office:'var(--f-office)',
+  service:'var(--f-service)', vertical:'var(--f-vertical)', utility:'var(--f-utility)',
+  restroom:'var(--f-restroom)', large:'var(--f-large)'
+};
+
+/* ---------------- grid + graph ---------------- */
+function decodeWalk(f){
+  if (f._walk) return f._walk;
+  const counts = f.walk.split(',').map(Number);
+  const total = f.gw*f.gh, out = new Uint8Array(total);
+  let i = 0, val = 0;
+  for (const c of counts){
+    if (val) out.fill(1, i, Math.min(total, i+c));
+    i += c; val ^= 1;
+    if (i >= total) break;
+  }
+  f._walk = out;
+  return out;
+}
+const key = (fid, idx) => fid + ':' + idx;
+function cellOf(f, px, py){ return (Math.floor(py/f.cell))*f.gw + Math.floor(px/f.cell); }
+function cellCenter(f, idx){
+  const gx = idx % f.gw, gy = (idx - gx)/f.gw;
+  return [gx*f.cell + f.cell/2, gy*f.cell + f.cell/2];
+}
+/** nearest walkable cell to a pixel point, spiral search */
+function nearestCell(fid, px, py, maxRings){
+  const f = FLOORS[fid], w = decodeWalk(f);
+  maxRings = maxRings || 14;
+  const gx = Math.floor(px/f.cell), gy = Math.floor(py/f.cell);
+  let best = -1, bd = Infinity;
+  for (let r = 0; r <= maxRings; r++){
+    for (let dy = -r; dy <= r; dy++){
+      for (let dx = -r; dx <= r; dx++){
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        const x = gx+dx, y = gy+dy;
+        if (x < 0 || y < 0 || x >= f.gw || y >= f.gh) continue;
+        const i = y*f.gw + x;
+        if (!w[i]) continue;
+        const d = dx*dx + dy*dy;
+        if (d < bd){ bd = d; best = i; }
+      }
+    }
+    if (best >= 0) return best;
+  }
+  return -1;
+}
+
+/* links between floors: vertical cores and wing connectors */
+const LINKS = new Map();
+function buildLinks(){
+  LINKS.clear();
+  for (const cid in DATA.cores){
+    const core = DATA.cores[cid];
+    const stops = core.stops.filter(s => s.open !== false).map(s => {
+      const room = s.room ? findRoom(s.floor, s.room) : null;
+      const p = room && room.door ? room.door : [s.x, s.y];
+      return {fid:s.floor, idx:nearestCell(s.floor, p[0], p[1]), room, at:p, open:s.open};
+    }).filter(s => s.idx >= 0);
+    for (let i = 0; i+1 < stops.length; i++){
+      const a = stops[i], b = stops[i+1];
+      const cost = core.kind === 'elevator' ? 46 : 34;
+      const meta = {type:'vertical', kind:core.kind, core:cid,
+                    accessible:core.kind === 'elevator',
+                    verified:(a.open === true && b.open === true)};
+      LINKS.get(key(a.fid,a.idx)) || LINKS.set(key(a.fid,a.idx), []);
+      LINKS.get(key(a.fid,a.idx)).push({fid:b.fid, idx:b.idx, cost, meta});
+      LINKS.get(key(b.fid,b.idx)) || LINKS.set(key(b.fid,b.idx), []);
+      LINKS.get(key(b.fid,b.idx)).push({fid:a.fid, idx:a.idx, cost, meta});
+    }
+    core._stops = stops;
+  }
+  for (const c of DATA.connectors){
+    const [af, ax, ay] = c.a, [bf, bx, by] = c.b;
+    if (!FLOORS[af] || !FLOORS[bf]) continue;
+    const ai = nearestCell(af, ax, ay, 30), bi = nearestCell(bf, bx, by, 30);
+    if (ai < 0 || bi < 0) continue;
+    const meta = {type:'connector', id:c.id, label:c.label, accessible:true,
+                  verified:!!c.verified};
+    if (!LINKS.has(key(af,ai))) LINKS.set(key(af,ai), []);
+    LINKS.get(key(af,ai)).push({fid:bf, idx:bi, cost:30, meta});
+    if (!LINKS.has(key(bf,bi))) LINKS.set(key(bf,bi), []);
+    LINKS.get(key(bf,bi)).push({fid:af, idx:ai, cost:30, meta});
+    c._a = ai; c._b = bi;
+  }
+}
+function findRoom(fid, rid){ return FLOORS[fid].rooms.find(r => r.id === rid) || null; }
+
+/* Dijkstra over (floor, cell) with 8-neighbour movement inside a floor */
+const SQ2 = Math.SQRT2;
+function findPath(startFid, startIdx, goalFid, goalIdx, stepFree){
+  const dist = new Map(), prev = new Map();
+  const heap = [[0, startFid, startIdx]];
+  const sk = key(startFid, startIdx);
+  dist.set(sk, 0);
+  const push = (d, f, i) => {
+    heap.push([d, f, i]);
+    let c = heap.length - 1;
+    while (c > 0){
+      const p = (c-1) >> 1;
+      if (heap[p][0] <= heap[c][0]) break;
+      [heap[p], heap[c]] = [heap[c], heap[p]]; c = p;
+    }
+  };
+  const pop = () => {
+    const top = heap[0], last = heap.pop();
+    if (heap.length){
+      heap[0] = last;
+      let c = 0;
+      for(;;){
+        const l = 2*c+1, r = l+1; let m = c;
+        if (l < heap.length && heap[l][0] < heap[m][0]) m = l;
+        if (r < heap.length && heap[r][0] < heap[m][0]) m = r;
+        if (m === c) break;
+        [heap[m], heap[c]] = [heap[c], heap[m]]; c = m;
+      }
+    }
+    return top;
+  };
+  const gk = key(goalFid, goalIdx);
+  const seen = new Set();
+  while (heap.length){
+    const [d, fid, idx] = pop();
+    const k = key(fid, idx);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    if (k === gk) break;
+    if (d > dist.get(k)) continue;
+    const f = FLOORS[fid], w = decodeWalk(f);
+    const gx = idx % f.gw, gy = (idx - gx)/f.gw;
+    for (let dy = -1; dy <= 1; dy++){
+      for (let dx = -1; dx <= 1; dx++){
+        if (!dx && !dy) continue;
+        const nx = gx+dx, ny = gy+dy;
+        if (nx < 0 || ny < 0 || nx >= f.gw || ny >= f.gh) continue;
+        const ni = ny*f.gw + nx;
+        if (!w[ni]) continue;
+        if (dx && dy && !(w[gy*f.gw+nx] && w[ny*f.gw+gx])) continue;
+        const nd = d + (dx && dy ? SQ2 : 1);
+        const nk = key(fid, ni);
+        if (nd < (dist.get(nk) ?? Infinity)){
+          dist.set(nk, nd); prev.set(nk, [fid, idx, null]);
+          push(nd, fid, ni);
+        }
+      }
+    }
+    for (const L of (LINKS.get(k) || [])){
+      if (stepFree && L.meta.accessible === false) continue;
+      const nk = key(L.fid, L.idx), nd = d + L.cost;
+      if (nd < (dist.get(nk) ?? Infinity)){
+        dist.set(nk, nd); prev.set(nk, [fid, idx, L.meta]);
+        push(nd, L.fid, L.idx);
+      }
+    }
+  }
+  if (!dist.has(gk)) return null;
+  const nodes = [];
+  let cur = [goalFid, goalIdx];
+  for(;;){
+    const p = prev.get(key(cur[0], cur[1]));
+    nodes.push({fid:cur[0], idx:cur[1], via:p ? p[2] : null});
+    if (!p) break;
+    cur = [p[0], p[1]];
+  }
+  nodes.reverse();
+  return {nodes, cost:dist.get(gk)};
+}
+
+/* ---------------- search index ---------------- */
+const INDEX = [];
+function buildIndex(){
+  for (const fid of ORDER){
+    const f = FLOORS[fid];
+    for (const r of f.rooms){
+      const words = (r.aliases || []).slice();
+      const label = r.name || (r.code ? TYPE_LABEL[r.type] : TYPE_LABEL[r.type] + ' (unlabelled)');
+      INDEX.push({
+        fid, rid:r.id, code:r.code || '', name:r.name || '', type:r.type,
+        label, aliases:words, verified:!!r.verified,
+        hay:[r.code||'', r.name||'', TYPE_LABEL[r.type], words.join(' '), f.name].join(' ').toLowerCase(),
+        rank:(r.code?0:2) + (r.name?0:1) + (words.length?-3:0)
+      });
+    }
+  }
+}
+function buildEntranceIndex(){
+  for (const e of (DATA.entrances || [])){
+    const f = FLOORS[e.floor];
+    if (!f) continue;
+    INDEX.push({
+      fid:e.floor, rid:null, ent:e.id, code:'', name:e.label, type:'entrance',
+      label:e.label, aliases:['entrance','entry','door','way in','front door','outside'],
+      verified:!!e.verified, floorName:f.name,
+      hay:(e.label + ' entrance door way in ' + f.name).toLowerCase(), rank:-6
+    });
+  }
+}
+function buildRosterIndex(){
+  if (!DATA.roster) return;
+  for (const fid in DATA.roster){
+    const R = DATA.roster[fid], f = FLOORS[fid];
+    for (const code of R.unplaced){
+      const fact = (DATA.facts || {})[code] || {};
+      INDEX.push({
+        fid, rid:null, code, name:fact.name || '', type:'unlocated',
+        label:(fact.name ? fact.name + ' — ' : '') +
+              'listed on the official plan, not yet placed on the map',
+        aliases:fact.aliases || [], note:fact.note, verified:false,
+        hay:(code + ' ' + (fact.name||'') + ' ' + (fact.aliases||[]).join(' ') + ' ' +
+             (f ? f.name : fid)).toLowerCase(), rank:24,
+        floorName:f ? f.name : ('Floor ' + fid.toUpperCase() + ' (no map yet)')
+      });
+    }
+  }
+}
+function search(q){
+  q = q.trim().toLowerCase();
+  if (!q) return [];
+  const out = [];
+  for (const e of INDEX){
+    let s = -1;
+    if (e.code && e.code.toLowerCase() === q) s = 100;
+    else if (e.aliases.some(a => a === q)) s = 95;
+    else if (e.aliases.some(a => a.includes(q))) s = 80;
+    else if (e.code && e.code.toLowerCase().startsWith(q)) s = 70;
+    else if (e.name && e.name.toLowerCase().startsWith(q)) s = 62;
+    else if (e.name && e.name.toLowerCase().split(/[^a-z]+/).some(w => w && w.startsWith(q))) s = 55;
+    else if (e.hay.includes(q)) s = 30;
+    if (s > 0) out.push([s - e.rank, e]);
+  }
+  out.sort((a,b) => b[0]-a[0]);
+  return out.slice(0, 40).map(x => x[1]);
+}
+
+/* ---------------- map rendering ---------------- */
+const svg = document.getElementById('map');
+const NS = 'http://www.w3.org/2000/svg';
+let curFid = '3b', view = {x:0,y:0,w:0,h:0}, selRoom = null, route = null, routeLegs = [];
+
+function el(n, attrs, parent){
+  const e = document.createElementNS(NS, n);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function drawFloor(fid){
+  curFid = fid;
+  const f = FLOORS[fid];
+  svg.innerHTML = '';
+  svg.setAttribute('aria-label', f.name + ' floor plan');
+  const g = el('g', {}, svg);
+  if (f.circPath) el('path', {d:f.circPath, class:'circ'}, g);
+  for (const r of f.rooms){
+    const p = el('path', {d:r.path, class:'room', fill:TYPE_FILL[r.type] || '#eee',
+                          'data-rid':r.id, tabindex:'-1'}, g);
+    p.addEventListener('click', ev => { ev.stopPropagation(); selectRoom(fid, r.id); });
+    const nm = r.name || r.code;
+    p.appendChild(el('title', {}, null)).textContent = nm ? nm + (r.code && r.name ? ' · ' + r.code : '') : TYPE_LABEL[r.type];
+  }
+  for (const e of (DATA.entrances || [])){
+    if (e.floor !== fid) continue;
+    const g2 = el('g', {}, g);
+    el('circle', {cx:e.x, cy:e.y, r:9, fill:'#fff', stroke:'var(--start)', 'stroke-width':3}, g2);
+    el('circle', {cx:e.x, cy:e.y, r:3, fill:'var(--start)'}, g2);
+    g2.appendChild(el('title', {}, null)).textContent = e.label;
+  }
+  for (const r of f.rooms){
+    if (!r.code || r.area < 900) continue;
+    const t = el('text', {x:r.cx, y:r.cy + 3,
+      class:'rlabel' + (r.codeSrc === 'ocr' ? ' guess' : '')}, g);
+    t.textContent = r.code;
+  }
+  svg.__g = g;
+  fitFloor();
+  drawRouteOverlay();
+  document.getElementById('ftname').textContent = f.name;
+  document.getElementById('ftmeta').textContent =
+    f.rooms.length + ' rooms · ' + (f.pxPerFt ? '≈' + (1/f.pxPerFt*100|0)/100 + ' ft/px' : '');
+  renderStack();
+}
+function setView(v){
+  view = v;
+  svg.setAttribute('viewBox', `${v.x} ${v.y} ${v.w} ${v.h}`);
+}
+function fitFloor(){
+  const f = FLOORS[curFid];
+  const rect = svg.getBoundingClientRect();
+  const pad = 30;
+  const aw = f.w + pad*2, ah = f.h + pad*2;
+  const sa = rect.width / Math.max(rect.height,1), da = aw/ah;
+  let w = aw, h = ah;
+  if (da > sa) h = aw/sa; else w = ah*sa;
+  setView({x:-pad - (w-aw)/2, y:-pad - (h-ah)/2, w, h});
+}
+function zoomBy(k, cx, cy){
+  const nw = Math.min(FLOORS[curFid].w*4, Math.max(120, view.w*k));
+  const nh = nw * (view.h/view.w);
+  const fx = cx === undefined ? .5 : (cx - view.x)/view.w;
+  const fy = cy === undefined ? .5 : (cy - view.y)/view.h;
+  setView({x:view.x + (view.w-nw)*fx, y:view.y + (view.h-nh)*fy, w:nw, h:nh});
+}
+document.getElementById('zin').onclick = () => zoomBy(1/1.4);
+document.getElementById('zout').onclick = () => zoomBy(1.4);
+document.getElementById('zfit').onclick = fitFloor;
+
+/* pan / pinch */
+(function(){
+  const pts = new Map();
+  let last = null, startDist = 0, startView = null;
+  const toSvg = e => {
+    const r = svg.getBoundingClientRect();
+    return [view.x + (e.clientX - r.left)/r.width*view.w,
+            view.y + (e.clientY - r.top)/r.height*view.h];
+  };
+  svg.addEventListener('pointerdown', e => {
+    svg.setPointerCapture(e.pointerId);
+    pts.set(e.pointerId, e);
+    if (pts.size === 1){ last = toSvg(e); svg.classList.add('dragging'); }
+    else if (pts.size === 2){
+      const [a,b] = [...pts.values()];
+      startDist = Math.hypot(a.clientX-b.clientX, a.clientY-b.clientY);
+      startView = {...view};
+    }
+  });
+  svg.addEventListener('pointermove', e => {
+    if (!pts.has(e.pointerId)) return;
+    pts.set(e.pointerId, e);
+    if (pts.size === 1 && last){
+      const p = toSvg(e);
+      setView({...view, x:view.x - (p[0]-last[0]), y:view.y - (p[1]-last[1])});
+    } else if (pts.size === 2 && startView){
+      const [a,b] = [...pts.values()];
+      const d = Math.hypot(a.clientX-b.clientX, a.clientY-b.clientY);
+      const k = startDist / Math.max(d,1);
+      const nw = Math.min(FLOORS[curFid].w*4, Math.max(120, startView.w*k));
+      const nh = nw*(startView.h/startView.w);
+      setView({x:startView.x + (startView.w-nw)/2, y:startView.y + (startView.h-nh)/2, w:nw, h:nh});
+    }
+  });
+  const end = e => {
+    pts.delete(e.pointerId);
+    if (!pts.size){ last = null; startView = null; svg.classList.remove('dragging'); }
+  };
+  svg.addEventListener('pointerup', end);
+  svg.addEventListener('pointercancel', end);
+  svg.addEventListener('wheel', e => {
+    e.preventDefault();
+    const [x,y] = toSvg(e);
+    zoomBy(e.deltaY > 0 ? 1.14 : 1/1.14, x, y);
+  }, {passive:false});
+  window.addEventListener('resize', fitFloor);
+})();
+
+/* ---------------- route geometry + directions ---------------- */
+function losClear(f, w, a, b){
+  const [ax,ay] = [a % f.gw, (a - a % f.gw)/f.gw];
+  const [bx,by] = [b % f.gw, (b - b % f.gw)/f.gw];
+  const n = Math.max(Math.abs(bx-ax), Math.abs(by-ay));
+  for (let i = 1; i < n; i++){
+    const x = Math.round(ax + (bx-ax)*i/n), y = Math.round(ay + (by-ay)*i/n);
+    if (!w[y*f.gw + x]) return false;
+  }
+  return true;
+}
+function simplify(fid, cells){
+  const f = FLOORS[fid], w = decodeWalk(f);
+  if (cells.length < 3) return cells.slice();
+  const out = [cells[0]];
+  let i = 0;
+  while (i < cells.length - 1){
+    let j = cells.length - 1;
+    while (j > i+1 && !losClear(f, w, cells[i], cells[j])) j--;
+    out.push(cells[j]); i = j;
+  }
+  return out;
+}
+/** split the node list into per-floor legs separated by link traversals */
+function splitLegs(nodes){
+  const legs = [];
+  let cur = {fid:nodes[0].fid, cells:[nodes[0].idx], enter:null, exit:null};
+  for (let i = 1; i < nodes.length; i++){
+    const n = nodes[i];
+    if (n.via){
+      cur.exit = n.via;
+      legs.push(cur);
+      cur = {fid:n.fid, cells:[n.idx], enter:n.via, exit:null};
+    } else {
+      cur.cells.push(n.idx);
+    }
+  }
+  legs.push(cur);
+  return legs;
+}
+function heading(f, a, b){
+  const ax = a % f.gw, ay = (a - ax)/f.gw, bx = b % f.gw, by = (b - bx)/f.gw;
+  return Math.atan2(by-ay, bx-ax);
+}
+function turnWord(prev, next){
+  let d = (next - prev) * 180/Math.PI;
+  while (d > 180) d -= 360;
+  while (d < -180) d += 360;
+  const a = Math.abs(d);
+  if (a < 22) return null;
+  if (a > 150) return 'Turn around';
+  const side = d > 0 ? 'right' : 'left';
+  if (a < 55) return 'Bear ' + side;
+  if (a > 115) return 'Sharp ' + side;
+  return 'Turn ' + side;
+}
+function feetBetween(f, a, b){
+  const ax = a % f.gw, ay = (a - ax)/f.gw, bx = b % f.gw, by = (b - bx)/f.gw;
+  const px = Math.hypot(bx-ax, by-ay) * f.cell;
+  return px / (f.pxPerFt || 5);
+}
+/** landmarks are taken from room type, which comes from the drawing's own colour key */
+function landmarkNear(f, cellIdx, used){
+  const [px,py] = cellCenter(f, cellIdx);
+  let best = null, bd = 46*46;
+  for (const r of f.rooms){
+    if (!r.door) continue;
+    if (!['restroom','vertical'].includes(r.type)) continue;
+    const d = (r.door[0]-px)**2 + (r.door[1]-py)**2;
+    if (d < bd){ bd = d; best = r; }
+  }
+  if (!best) return null;
+  const nm = best.type === 'restroom' ? 'the restrooms'
+           : best.coreKind === 'elevator' ? 'the elevators' : 'a stairwell';
+  if (used && used.has(nm)) return null;
+  if (used) used.add(nm);
+  return nm;
+}
+function buildDirections(res, fromRoom, toRoom){
+  let legs = splitLegs(res.nodes);
+  // riding one elevator or stairwell past a floor should not become its own leg
+  legs = legs.filter(lg => !(lg.enter && lg.exit &&
+    lg.enter.type === 'vertical' && lg.exit.type === 'vertical' &&
+    lg.enter.core === lg.exit.core && lg.cells.length <= 3));
+  const out = [];
+  let totalFt = 0, verticals = 0;
+  legs.forEach((leg, li) => {
+    const f = FLOORS[leg.fid];
+    const pts = simplify(leg.fid, leg.cells);
+    const steps = [];
+    if (li === 0){
+      steps.push({icon:'A', text:'Start at ' + roomTitle(fromRoom) + '. Step out into the corridor.'});
+    } else if (leg.enter){
+      const m = leg.enter;
+      if (m.type === 'vertical'){
+        verticals++;
+        const fl = f.floor;
+        steps.push({icon:'↕', v:true,
+          text:(m.kind === 'elevator' ? 'Take the elevator to floor ' : 'Take the stairs to floor ') + fl + '.',
+          warn:!m.verified});
+      } else {
+        steps.push({icon:'→', v:true, text:'Cross the ' + (m.label || 'connector') + '.', warn:!m.verified});
+      }
+    }
+    const used = new Set();
+    const runs = [];
+    let prevH = null;
+    for (let i = 0; i+1 < pts.length; i++){
+      const h = heading(f, pts[i], pts[i+1]);
+      const ft = feetBetween(f, pts[i], pts[i+1]);
+      totalFt += ft;
+      const tw = prevH === null ? null : turnWord(prevH, h);
+      if (runs.length && !tw) runs[runs.length-1].ft += ft;
+      else runs.push({turn:tw, ft, at:pts[i]});
+      prevH = h;
+    }
+    for (const run of runs){
+      const ft = Math.max(5, Math.round(run.ft/5)*5);
+      if (ft < 10 && runs.length > 1 && !run.turn) continue;
+      const lm = landmarkNear(f, run.at, used);
+      let txt = (run.turn ? run.turn + ', then continue' : 'Continue') + ' about ' + ft + ' ft';
+      if (lm) txt += ' past ' + lm;
+      txt += '.';
+      steps.push({icon:run.turn ? (run.turn.includes('left') ? '↰'
+                   : run.turn.includes('right') ? '↱' : '↻') : '↑', text:txt, dist:ft});
+    }
+    if (li === legs.length - 1){
+      steps.push({icon:'B', text:roomTitle(toRoom) + ' is here.'});
+    } else if (leg.exit){
+      const m = leg.exit;
+      if (m.type === 'vertical'){
+        steps.push({icon:'↕', v:true,
+          text:'Go to ' + (m.kind === 'elevator' ? 'the elevators' : 'the stairs') + '.', warn:!m.verified});
+      } else {
+        steps.push({icon:'→', v:true, text:'Head for the ' + (m.label || 'connector') + '.', warn:!m.verified});
+      }
+    }
+    out.push({fid:leg.fid, name:f.name, steps, pts});
+  });
+  return {legs:out, totalFt:Math.round(totalFt/5)*5, verticals,
+          minutes:Math.max(1, Math.round(totalFt/250 + verticals*1.5))};
+}
+function roomTitle(r){
+  if (!r) return 'your destination';
+  if (r.kind === 'entrance') return r.name;
+  if (r.name && r.code) return r.name + ' (' + r.code + ')';
+  return r.name || r.code || TYPE_LABEL[r.type];
+}
+
+/* ---------------- route overlay ---------------- */
+function drawRouteOverlay(){
+  if (!svg.__g) return;
+  svg.__g.querySelectorAll('.routeg,.pin').forEach(n => n.remove());
+  if (!route) return;
+  const legsHere = routeLegs.filter(l => l.fid === curFid);
+  const g = el('g', {class:'routeg'}, svg.__g);
+  const f = FLOORS[curFid];
+  for (const leg of legsHere){
+    const d = leg.pts.map((c,i) => (i ? 'L' : 'M') + cellCenter(f,c).map(v => v.toFixed(1)).join(' ')).join(' ');
+    el('path', {d, class:'route-casing'}, g);
+    el('path', {d, class:'route-line'}, g);
+  }
+  const A = route.fromRoom, B = route.toRoom;
+  if (A && A._fid === curFid) pin(A.door || [A.cx,A.cy], 'var(--start)', 'A');
+  if (B && B._fid === curFid) pin(B.door || [B.cx,B.cy], 'var(--end)', 'B');
+  function pin(p, color, ch){
+    const g2 = el('g', {class:'pin', transform:`translate(${p[0]},${p[1]})`}, svg.__g);
+    el('circle', {r:7, fill:color, opacity:.28, class:'pulse'}, g2);
+    el('circle', {r:8, fill:color, stroke:'#fff', 'stroke-width':2.5}, g2);
+    const t = el('text', {y:3.5, 'text-anchor':'middle', fill:'#fff',
+                          style:'font:700 9px var(--mono)'}, g2);
+    t.textContent = ch;
+  }
+}
+
+/* ---------------- panels ---------------- */
+const paneRoute = document.getElementById('pane-route');
+const paneFloors = document.getElementById('pane-floors');
+const paneInfo = document.getElementById('pane-info');
+const paneArrive = document.getElementById('pane-arrive');
+const paneData = document.getElementById('pane-data');
+
+document.querySelectorAll('.tabs button').forEach(b => {
+  b.onclick = () => {
+    document.querySelectorAll('.tabs button').forEach(x => x.setAttribute('aria-selected', x === b));
+    ['route','floors','info','arrive','data'].forEach(n =>
+      document.getElementById('pane-' + n).hidden = (b.id !== 'tab-' + n));
+    if (window.innerWidth <= 860) document.getElementById('side').classList.remove('collapsed');
+  };
+});
+function showTab(n){ document.getElementById('tab-' + n).click(); }
+
+function renderStack(){
+  const wings = Object.keys(DATA.wings);
+  const floorNums = [...new Set(ORDER.map(f => FLOORS[f].floor))].sort((a,b) => b-a);
+  const inRoute = new Set(routeLegs.map(l => l.fid));
+  let h = '<h2>Pick a floor</h2><div class="stack">';
+  h += '<div class="stackhead"><span></span>' + wings.map(w => '<span>' + w + '</span>').join('') + '</div>';
+  for (const n of floorNums){
+    h += '<div class="stackrow"><span class="stacklabel">' + n + '</span>';
+    for (const w of wings){
+      const fid = ORDER.find(f => FLOORS[f].wing === w && FLOORS[f].floor === n);
+      if (!fid) h += '<span class="cell void">·</span>';
+      else h += '<button class="cell' + (fid === curFid ? ' on' : inRoute.has(fid) ? ' inroute' : '') +
+                '" data-fid="' + fid + '">' + w + n + '</button>';
+    }
+    h += '</div>';
+  }
+  h += '</div>';
+  h += '<div class="note">South Campus is one connected six-storey building, not separate ' +
+       'buildings. The letters are wings of it. Floor numbers run across the whole building, so ' +
+       'D Wing starts at floor 1 and B Wing starts at floor 3, and B3 and D3 are the same level. ' +
+       'A dash means no plan was supplied for that wing on that floor.</div>';
+  h += '<h2>Room colours</h2><div class="legend">' +
+       Object.keys(TYPE_FILL).map(t =>
+         '<span><i style="background:' + TYPE_FILL[t] + '"></i>' + TYPE_LABEL[t] + '</span>').join('') +
+       '</div>';
+  paneFloors.innerHTML = h;
+  paneFloors.querySelectorAll('.cell[data-fid]').forEach(b =>
+    b.onclick = () => { drawFloor(b.dataset.fid); });
+}
+
+function selectRoom(fid, rid){
+  if (fid !== curFid) drawFloor(fid);
+  selRoom = {fid, rid};
+  svg.querySelectorAll('.room').forEach(p => p.classList.toggle('sel', p.dataset.rid === rid));
+  const r = findRoom(fid, rid), f = FLOORS[fid];
+  const aliases = r.aliases || [];
+  let h = '<div class="card"><h3>' + (r.name || TYPE_LABEL[r.type]) + '</h3>';
+  h += '<div class="code">' + (r.code || 'no code read') + ' · ' + f.name + '</div>';
+  h += '<dl class="kv">';
+  h += '<dt>Type</dt><dd>' + TYPE_LABEL[r.type] + '</dd>';
+  if (aliases.length) h += '<dt>Also called</dt><dd>' + aliases.join(', ') + '</dd>';
+  if (r.note) h += '<dt>Note</dt><dd>' + r.note +
+    (r.noteSrc ? ' <span style="color:var(--ink-3)">(' + r.noteSrc + ')</span>' : '') + '</dd>';
+  h += '<dt>Code from</dt><dd>' + SRC_LABEL[r.codeSrc || 'none'] + '</dd>';
+  if (r.nameSrc === 'transcribed-unconfirmed')
+    h += '<dt>Name</dt><dd><span class="badge">may belong to a neighbouring room</span></dd>';
+  h += '<dt>Label</dt><dd>' + (r.verified
+        ? '<span class="badge ok">checked by a person</span>'
+        : '<span class="badge">not checked in the building</span>') + '</dd>';
+  h += '<dt>Access point</dt><dd>' + (r.door
+        ? (r.doorQ === 'door' ? 'doorway found' : 'nearest corridor (' + r.doorQ + ')')
+        : 'none found — cannot route to this room yet') + '</dd>';
+  h += '</dl>';
+  h += '<div class="rowbtns"><button data-set="from">Route from here</button>' +
+       '<button data-set="to">Route to here</button></div></div>';
+  paneInfo.innerHTML = h;
+  paneInfo.querySelectorAll('[data-set]').forEach(b => b.onclick = () => {
+    const which = b.dataset.set;
+    pick[which] = {fid, rid};
+    inputs[which].value = roomTitle(r) + ' — ' + f.name;
+    clears[which].hidden = false;
+    updateGo();
+    if (pick.from && pick.to) doRoute();
+  });
+  showTab('info');
+}
+
+function renderData(){
+  let rooms = 0, official = 0, transcribed = 0, guess = 0, named = 0,
+      verified = 0, routable = 0, doors = 0;
+  for (const fid of ORDER) for (const r of FLOORS[fid].rooms){
+    rooms++;
+    if (r.codeSrc === 'official') official++;
+    else if (r.codeSrc === 'transcribed') transcribed++;
+    else if (r.codeSrc === 'ocr') guess++;
+    if (r.name) named++;
+    if (r.verified) verified++;
+    if (r.door) routable++;
+    if (r.doorQ === 'door') doors++;
+  }
+  let rosterTotal = 0, rosterUnplaced = 0;
+  for (const fid in (DATA.roster || {})){
+    rosterTotal += DATA.roster[fid].codes.length;
+    rosterUnplaced += DATA.roster[fid].unplaced.length;
+  }
+  const stops = Object.values(DATA.cores).reduce((n,c) => n + c.stops.length, 0);
+  paneData.innerHTML =
+   '<h2>What this map is built from</h2>' +
+   '<p style="font-size:13px;color:var(--ink-2);margin:0 0 10px">Room shapes, corridors and doorways ' +
+   'were read automatically off the colour floor plan images. Room numbers come from the scanned ' +
+   'official plans, matched onto those shapes. Room names still come from reading the colour ' +
+   'drawings by eye. Nothing here has been checked against the actual building.</p>' +
+   '<div class="qual"><table>' +
+   row('Rooms found', rooms) +
+   row('Number from official plan', official) +
+   row('Number read off colour drawing', transcribed) +
+   row('Number is a machine guess', guess) +
+   row('No number yet', rooms - official - transcribed - guess) +
+   row('With a name', named) +
+   row('Checked in the building', verified) +
+   row('Reachable by a route', routable) + row('True doorway located', doors) +
+   row('Official numbers on file', rosterTotal) +
+   row('Not yet placed on a shape', rosterUnplaced) +
+   row('Stair / elevator stops', stops) + row('Wing connectors', DATA.connectors.length) +
+   '</table></div>' +
+   '<div class="note warn"><b>Before anyone relies on this:</b> the stair and elevator links and ' +
+   'all seven wing connectors still need to be walked and confirmed. The connector positions are ' +
+   'guesses taken from the aerial campus photo. Room names have not been confirmed either.</div>' +
+   '<div class="note">Four floor plans in the scanned set have no map here at all: C Wing floor 3, ' +
+   'and L Wing floors 3, 4 and 6. Their room numbers are searchable but there is no drawing to ' +
+   'show, because no colour plan was supplied for them.</div>' +
+   '<h2>Fixing the labels</h2>' +
+   '<p style="font-size:13px;color:var(--ink-2);margin:0">Corrections are made with a separate tool ' +
+   'that is not part of this version, because it needs the college\'s own drawings underneath. ' +
+   'If you spot something wrong here, it is worth passing on so it can be fixed.</p>';
+  function row(k, v){ return '<tr><td>' + k + '</td><td>' + v + '</td></tr>'; }
+}
+
+function renderArrive(){
+  const L = (href, text) => '<a href="' + href + '" target="_blank" rel="noopener" ' +
+    'style="color:var(--maroon);font-weight:600">' + text + '</a>';
+  paneArrive.innerHTML =
+   '<h2>Getting to South Campus</h2>' +
+   '<p style="font-size:13.5px;color:var(--ink-2);margin:0 0 10px">' +
+   '1750 Clairton Road, West Mifflin. The whole campus is one connected six-storey building, ' +
+   'so once you are inside, everything on this map is reachable without going back outdoors.</p>' +
+
+   '<h2>By bus</h2>' +
+   '<p style="font-size:13.5px;color:var(--ink-2);margin:0 0 6px">Routes <b>55</b>, <b>Y47</b> and ' +
+   '<b>Y49</b> stop at <b>South Campus Drvwy + Library Entrance</b>, roughly a two-minute walk from ' +
+   'the door. The Y47 and Y49 both end their run at that driveway.</p>' +
+
+   '<h2>Which door to use</h2>' +
+   '<div class="note">For the library, CCAC says to enter at the <b>traffic circle entrance</b> and go ' +
+   'up one floor. Since the library sits on floor 5, that puts the traffic circle door on floor 4 — ' +
+   'that is an inference from CCAC\'s own wording, not something anyone has confirmed.</div>' +
+   '<p style="font-size:13.5px;color:var(--ink-2);margin:6px 0 0">The blue ringed dots on the map are ' +
+   'the doors the drawings mark. Search <b>entrance</b> to route from one, which is what you want when ' +
+   'you have just walked in and need to find a room. There is also a wayfinding kiosk with a QR code ' +
+   'at the front entrances.</p>' +
+   '<div class="note">Which of these is the traffic circle door is not confirmed, and their positions ' +
+   'were read off the drawings rather than walked. They are the least checked thing in here.</div>' +
+
+   '<h2>Parking</h2>' +
+   '<div class="note warn">Parking is not in this map. None of the floor plans cover the grounds, and ' +
+   'CCAC\'s own parking data is not published in a form that could be pulled in. Use CCAC\'s official ' +
+   'map for now, which needs an internet connection.</div>' +
+   '<p style="font-size:13.5px;margin:6px 0 0">' +
+   L('https://cdn.maps.moderncampus.net/nucloudmap/index.html?map=683&layer=Parking%20and%20Transit',
+     'CCAC parking and transit map') + '<br>' +
+   L('https://cdn.maps.moderncampus.net/nucloudmap/index.html?map=683', 'CCAC South Campus map') + '<br>' +
+   L('https://www.ccac.edu/campus-life/maps-and-directions.php', 'CCAC maps and directions') +
+   '</p>';
+}
+
+/* ---------------- search inputs ---------------- */
+const inputs = {from:document.getElementById('i-from'), to:document.getElementById('i-to')};
+const fields = {from:document.getElementById('f-from'), to:document.getElementById('f-to')};
+const menus = {from:fields.from.querySelector('.menu'), to:fields.to.querySelector('.menu')};
+const clears = {from:fields.from.querySelector('.clear'), to:fields.to.querySelector('.clear')};
+const pick = {from:null, to:null};
+
+for (const which of ['from','to']){
+  const inp = inputs[which], menu = menus[which];
+  let items = [], cursor = -1;
+  const close = () => { menu.classList.remove('open'); cursor = -1; };
+  inp.addEventListener('input', () => {
+    pick[which] = null; updateGo();
+    clears[which].hidden = !inp.value;
+    items = search(inp.value);
+    if (!inp.value){ close(); return; }
+    menu.innerHTML = items.length
+      ? items.map((e,i) =>
+          '<button data-i="' + i + '"><span class="code">' + (e.code || '—') + '</span>' +
+          '<span class="nm">' + e.label + (e.aliases.length ? ' · ' + e.aliases[0] : '') + '</span>' +
+          '<span class="loc">' + (e.rid ? FLOORS[e.fid].name.replace(' · Floor', ' ·')
+             : (e.floorName || '').replace(' · Floor', ' ·')) + '</span></button>').join('')
+      : '<div class="none">Nothing matches. Room codes look like B319 or D406.</div>';
+    menu.classList.add('open');
+    menu.querySelectorAll('button').forEach(b =>
+      b.onclick = () => choose(items[+b.dataset.i]));
+  });
+  inp.addEventListener('keydown', e => {
+    if (!menu.classList.contains('open')) return;
+    const btns = [...menu.querySelectorAll('button')];
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp'){
+      e.preventDefault();
+      cursor = Math.max(0, Math.min(btns.length-1, cursor + (e.key === 'ArrowDown' ? 1 : -1)));
+      btns.forEach((b,i) => b.setAttribute('aria-selected', i === cursor));
+      btns[cursor]?.scrollIntoView({block:'nearest'});
+    } else if (e.key === 'Enter'){
+      e.preventDefault();
+      if (cursor >= 0) btns[cursor].click(); else btns[0]?.click();
+    } else if (e.key === 'Escape') close();
+  });
+  inp.addEventListener('blur', () => setTimeout(close, 130));
+  clears[which].onclick = () => {
+    inp.value = ''; pick[which] = null; clears[which].hidden = true;
+    route = null; routeLegs = []; drawRouteOverlay(); renderRoutePane(); updateGo();
+  };
+  function choose(e){
+    if (e.ent){
+      pick[which] = {fid:e.fid, ent:e.ent};
+      inp.value = e.label;
+      clears[which].hidden = false;
+      close(); updateGo();
+      drawFloor(e.fid);
+      if (pick.from && pick.to) doRoute();
+      return;
+    }
+    if (!e.rid){
+      close(); inp.value = e.code; clears[which].hidden = false;
+      pick[which] = null; updateGo();
+      if (FLOORS[e.fid]) drawFloor(e.fid);
+      paneInfo.innerHTML = '<div class="card"><h3>' + (e.name || e.code) + '</h3><div class="code">' +
+        e.code + ' · ' + (e.floorName || '') + '</div>' +
+        (e.note ? '<div class="note">' + e.note + '</div>' : '') +
+        '<div class="note warn">This room number is on the official ' +
+        'plan for this floor, but it has not been matched to a shape on the map yet, so it ' +
+        'cannot be routed to. Open the editor, find the room, and type this code into it.</div></div>';
+      showTab('info');
+      return;
+    }
+    pick[which] = {fid:e.fid, rid:e.rid};
+    inp.value = (e.code ? e.code + ' — ' : '') + e.label;
+    clears[which].hidden = false;
+    close(); updateGo();
+    drawFloor(e.fid); selectRoom(e.fid, e.rid);
+    if (pick.from && pick.to) doRoute();
+  }
+}
+function updateGo(){ document.getElementById('go').disabled = !(pick.from && pick.to); }
+document.getElementById('go').onclick = doRoute;
+document.getElementById('stepfree').onchange = () => { if (pick.from && pick.to) doRoute(); };
+
+/* ---------------- run a route ---------------- */
+function endpoint(p){
+  if (p.ent){
+    const e = (DATA.entrances || []).find(x => x.id === p.ent);
+    return {kind:'entrance', _fid:p.fid, name:e.label, cx:e.x, cy:e.y,
+            door:[e.x, e.y], type:'entrance'};
+  }
+  const r = findRoom(p.fid, p.rid);
+  r._fid = p.fid;
+  return r;
+}
+function doRoute(){
+  const stepFree = document.getElementById('stepfree').checked;
+  const A = endpoint(pick.from), B = endpoint(pick.to);
+  const ai = A.door ? nearestCell(A._fid, A.door[0], A.door[1], 26) : nearestCell(A._fid, A.cx, A.cy, 26);
+  const bi = B.door ? nearestCell(B._fid, B.door[0], B.door[1], 26) : nearestCell(B._fid, B.cx, B.cy, 26);
+  if (ai < 0 || bi < 0){
+    route = null; routeLegs = [];
+    paneRoute.innerHTML = '<div class="note warn">One of these rooms has no corridor access point in the ' +
+      'extracted data, so no route can be drawn yet. It needs an access point set in the editor.</div>';
+    drawRouteOverlay(); showTab('route'); return;
+  }
+  const res = findPath(A._fid, ai, B._fid, bi, stepFree);
+  if (!res){
+    route = null; routeLegs = [];
+    paneRoute.innerHTML = '<div class="note warn">No route found' +
+      (stepFree ? ' without stairs' : '') + '. These two points are not connected in the extracted ' +
+      'corridor network — usually a missing stair, elevator or wing connector.</div>';
+    drawRouteOverlay(); showTab('route'); return;
+  }
+  const dir = buildDirections(res, A, B);
+  route = {fromRoom:A, toRoom:B, res, stepFree};
+  routeLegs = dir.legs;
+  renderRoutePane(dir);
+  drawFloor(routeLegs[0].fid);
+  showTab('route');
+}
+function renderRoutePane(dir){
+  if (!dir){
+    paneRoute.innerHTML =
+      '<h2>Find your way</h2>' +
+      '<p style="font-size:13.5px;color:var(--ink-2)">Type where you are and where you need to be. ' +
+      'You can use a room code like <b>B319</b> or a place like <b>bookstore</b>. ' +
+      'Tap any room on the map to see what it is.</p>' +
+      '<div class="note">Turn on <b>Step-free</b> to route by elevator only.</div>';
+    return;
+  }
+  const mins = dir.minutes;
+  const unver = dir.legs.some(l => l.steps.some(s => s.warn));
+  let h = '<div class="summary"><div>On the level<b>' + dir.totalFt + ' ft</b></div>' +
+          '<div>About<b>' + mins + ' min</b></div>' +
+          '<div>Levels<b>' + dir.verticals + '</b></div></div>';
+  if (route.stepFree) h += '<div class="note">Step-free route: elevators only, no stairs.</div>';
+  dir.legs.forEach((leg,i) => {
+    h += '<div class="leg"><button data-fid="' + leg.fid + '">' +
+         '<span>' + leg.name + '</span><span class="fl">show</span></button><ol class="steps">' +
+         leg.steps.map(s =>
+           '<li><span class="icon' + (s.v ? ' v' : '') + (s.warn ? ' w' : '') + '">' + s.icon + '</span>' +
+           '<span>' + s.text + (s.warn ? ' <em>(link not verified)</em>' : '') + '</span></li>').join('') +
+         '</ol></div>';
+  });
+  h += '<div class="note' + (unver ? ' warn' : '') + '">Distances are estimated from the drawings, ' +
+       'not measured. ' + (unver ? 'This route uses stair, elevator or connector links that nobody has ' +
+       'confirmed yet.' : '') + '</div>';
+  paneRoute.innerHTML = h;
+  paneRoute.querySelectorAll('.leg button[data-fid]').forEach(b =>
+    b.onclick = () => drawFloor(b.dataset.fid));
+}
+
+/* mobile sheet */
+document.getElementById('grip').onclick = () =>
+  document.getElementById('side').classList.toggle('collapsed');
+if (window.innerWidth <= 860) document.getElementById('side').classList.add('collapsed');
+svg.addEventListener('click', () => {
+  selRoom = null;
+  svg.querySelectorAll('.room.sel').forEach(p => p.classList.remove('sel'));
+});
+
+
+/* theme: follow the operating system, with a manual override for this session */
+(function(){
+  const root = document.documentElement;
+  const mq = window.matchMedia('(prefers-color-scheme: dark)');
+  let manual = false;
+  const apply = dark => root.setAttribute('data-theme', dark ? 'dark' : 'light');
+  apply(mq.matches);
+  try { mq.addEventListener('change', e => { if (!manual) apply(e.matches); }); } catch(_){}
+  const btn = document.getElementById('themetog');
+  if (btn) btn.onclick = () => {
+    manual = true;
+    const dark = root.getAttribute('data-theme') !== 'dark';
+    apply(dark);
+    btn.textContent = dark ? '\u25D1' : '\u25D0';
+  };
+})();
+/* ---------------- boot ---------------- */
+buildIndex();
+buildEntranceIndex();
+buildRosterIndex();
+buildLinks();
+renderRoutePane();
+renderArrive();
+renderData();
+drawFloor('3b');
+
+/* hooks for the shared floor picker in the site navigation */
+window.__getFloor = () => curFid;
+window.__setFloor = fid => drawFloor(fid);
+</script>
+
+
+<div class="floorsheet" id="aboutsheet" hidden>
+  <div class="fsback" id="abback"></div>
+  <div class="fspanel" role="dialog" aria-label="About this map" aria-modal="true">
+    <div class="fshead"><b>About this map</b><button id="abclose" aria-label="Close">&times;</button></div>
+    <p class="abp"><b>This is an unofficial map.</b> It was made by a student. It is not produced,
+      reviewed, endorsed or maintained by the Community College of Allegheny County, and the college
+      is not responsible for anything in it. Nobody who made it is employed by or affiliated with CCAC.</p>
+    <p class="abp"><b>Do not rely on it in an emergency.</b> Follow the posted evacuation plans and the
+      instructions of college staff.</p>
+    <p class="abp"><b>Nothing here has been checked against the building.</b> Room numbers were read from
+      CCAC&rsquo;s published floor plans. Room names, stair and lift connections, links between wings and
+      door positions are all unverified, and some are known to be wrong. Distances are estimates.</p>
+    <p class="abp">For official information, use <a href="https://www.ccac.edu" target="_blank"
+      rel="noopener">ccac.edu</a> or the wayfinding kiosks at the front entrances.</p>
+  </div>
+</div>
+<div class="floorsheet" id="floorsheet" hidden>
+  <div class="fsback" id="fsback"></div>
+  <div class="fspanel" role="dialog" aria-label="Pick a floor" aria-modal="true">
+    <div class="fshead"><b>Pick a floor</b><button id="fsclose" aria-label="Close">&times;</button></div>
+    <div class="fsgrid" id="fsgrid"></div>
+    <p class="fsnote">South Campus is one connected building. Floor numbers run across the whole
+      building, so D Wing starts at 1 and B Wing starts at 3 &mdash; B3 and D3 are the same level.
+      A dash means no plan for that wing on that floor.</p>
+  </div>
+</div>
+<nav class="sitenav" aria-label="Tools">
+  <div class="disclaim">
+    Unofficial &mdash; not made by or endorsed by CCAC.
+    <button id="aboutlink">Details</button>
+  </div>
+  <div class="navmain">
+    <a href="index.html" data-page="index" class="navbtn"><span class="ni">&#9906;</span>Map</a>
+    <button class="navbtn" id="navfloors"><span class="ni">&#9636;</span>Floors</button>
+    <button class="navbtn" id="navabout"><span class="ni">&#9432;</span>About</button>
+  </div>
+</nav>
+<script>
+/* offline support: only active when served over https, ignored on a local file */
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+(function(){
+  const B = window.__BUNDLE__, page = document.body.dataset.page;
+  document.querySelectorAll('.sitenav [data-page]').forEach(a => {
+    if (a.dataset.page === page) a.setAttribute('aria-current','page');
+  });
+
+  /* the two correction tools stay out of the way unless asked for */
+  const tools = document.getElementById('navtools'), advBtn = document.getElementById('navadv');
+  if (tools && advBtn){
+    const setAdv = open => {
+      tools.hidden = !open;
+      advBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      window.dispatchEvent(new Event('resize'));
+    };
+    advBtn.onclick = () => setAdv(tools.hidden);
+    if (page !== 'index') setAdv(true);   // already inside a tool: show where you are
+  }
+
+  /* one floor picker, same on all three pages */
+  const sheet = document.getElementById('floorsheet');
+  const wings = [...new Set(B.order.map(f => B.floors[f].wing))].sort();
+  const nums  = [...new Set(B.order.map(f => B.floors[f].floor))].sort((a,b) => b-a);
+  function paint(){
+    const cur = window.__getFloor ? window.__getFloor() : null;
+    let h = '<div class="fshdr"><span></span>' +
+            wings.map(w => '<span>' + w + '</span>').join('') + '</div>';
+    for (const n of nums){
+      h += '<div class="fsrow"><span class="lbl">' + n + '</span>';
+      for (const w of wings){
+        const fid = B.order.find(f => B.floors[f].wing === w && B.floors[f].floor === n);
+        h += fid
+          ? '<button data-fid="' + fid + '"' + (fid === cur ? ' aria-current="true"' : '') +
+            '>' + w + n + '</button>'
+          : '<span class="void">&middot;</span>';
+      }
+      h += '</div>';
+    }
+    const g = document.getElementById('fsgrid');
+    g.innerHTML = h;
+    g.querySelectorAll('[data-fid]').forEach(b => b.onclick = () => {
+      if (window.__setFloor) window.__setFloor(b.dataset.fid);
+      close();
+    });
+  }
+  const open = () => { paint(); sheet.hidden = false; };
+  const close = () => { sheet.hidden = true; };
+  document.getElementById('navfloors').onclick = open;
+  document.getElementById('fsclose').onclick = close;
+  document.getElementById('fsback').onclick = close;
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !sheet.hidden) close(); });
+
+  const ab = document.getElementById('aboutsheet');
+  const abOpen = () => { ab.hidden = false; };
+  const abClose = () => { ab.hidden = true; };
+  document.getElementById('aboutlink').onclick = abOpen;
+  document.getElementById('abclose').onclick = abClose;
+  document.getElementById('abback').onclick = abClose;
+  const abBtn = document.getElementById('navabout');
+  if (abBtn) abBtn.onclick = abOpen;
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !ab.hidden) abClose(); });
+})();
+</script>
+</body>
+</html>
