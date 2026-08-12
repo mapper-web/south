@@ -86,7 +86,8 @@ header{
 }
 .go:hover{background:var(--maroon-ink)}
 .go:disabled{background:#b9c2ca;cursor:not-allowed}
-.nearest{display:flex;align-items:center;gap:6px;flex-wrap:wrap;width:100%}
+.nearrows{display:flex;flex-direction:column;gap:6px;width:100%}
+.nearest{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .nearest::-webkit-scrollbar{display:none}
 .nearest>span{
   font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:var(--ink-3);font-weight:700;
@@ -139,13 +140,10 @@ svg#map.dragging{cursor:grabbing}
 }
 .pcacts button:hover{border-color:var(--maroon);color:var(--maroon);background:var(--maroon-soft)}
 @media (max-width:620px){
-  .pickchip{flex-wrap:wrap;gap:6px;padding:7px 9px}
-  .pcmain{flex:1 1 100%;order:1}
-  .pcmain b{font-size:14px}
-  .pccode{order:2}
-  .pcacts{order:3;flex:1 1 auto}
-  .pcacts button{flex:1 1 auto;padding:8px 12px;font-size:12.5px}
-  .pickchip>button:last-child{order:4}
+  .pickchip{flex-wrap:nowrap;gap:7px;padding:7px 9px}
+  .pcmain{flex:1 1 auto;min-width:0}
+  .pcmain b{font-size:13.5px}
+  .pcacts button{padding:6px 10px;font-size:12px}
 }
 /* the close button only — scoped by id so it cannot swallow the From/To buttons */
 #pcclose{
@@ -261,17 +259,23 @@ ol.steps li:last-child{border-bottom:0}
   .go{padding:9px 13px}
   .toggle{font-size:12.5px}
   .tabs button{padding:8px 3px;font-size:11px;letter-spacing:.05em}
-  /* one line each, scrolling sideways rather than stacking into a third row */
-  .nearest{gap:5px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+  /* both groups share one line that scrolls sideways, saving a whole row */
+  .nearrows{flex-direction:row;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;gap:0}
+  .nearrows::-webkit-scrollbar{display:none}
+  .nearest{gap:5px;flex-wrap:nowrap;flex:none}
+  .nearest+.nearest{margin-left:9px;padding-left:9px;border-left:1px solid var(--edge)}
   .nearest>span{min-width:auto;flex:none}
   .nearest button{padding:4px 9px;font-size:11.5px;flex:none}
-  .go{padding:8px 12px;font-size:14px}
+  /* Choosing both ends already draws the route, so this button never has work to do
+     on a phone; the row it occupied goes to the map instead. */
+  .go{display:none}
   .summary{padding:8px;gap:10px;margin-bottom:10px}
   .summary b{font-size:15px}
   .summary div{font-size:11px}
   ol.steps li{padding:6px 9px;font-size:13px}
   .pickchip{padding:6px 8px}
   .pcmain b{font-size:13.5px}
+  .pcmain span{display:none}
   .leg>button{padding:8px 9px}
   main{flex-direction:column}
   #mapwrap{min-height:40dvh}
@@ -420,19 +424,21 @@ html[data-theme="dark"]{
     </label>
     <button class="go" id="go" disabled>Get directions</button>
   </div>
-  <div class="nearest">
-    <span>Nearest restroom</span>
-    <button data-near="restroom_w">Women&rsquo;s</button>
-    <button data-near="restroom_m">Men&rsquo;s</button>
-    <button data-near="restroom_a">All gender</button>
-    <button data-near="restroom">Any</button>
-  </div>
-  <div class="nearest">
-    <span>Also find</span>
-    <button data-near="elevator">Elevator</button>
-    <button data-near="stairs">Stairs</button>
-    <button data-near="exit">Exit</button>
-    <button data-near="lab">Computer lab</button>
+  <div class="nearrows">
+    <div class="nearest">
+      <span>Nearest restroom</span>
+      <button data-near="restroom_w">Women&rsquo;s</button>
+      <button data-near="restroom_m">Men&rsquo;s</button>
+      <button data-near="restroom_a">All gender</button>
+      <button data-near="restroom">Any</button>
+    </div>
+    <div class="nearest">
+      <span>Also find</span>
+      <button data-near="elevator">Elevator</button>
+      <button data-near="stairs">Stairs</button>
+      <button data-near="exit">Exit</button>
+      <button data-near="lab">Computer lab</button>
+    </div>
   </div>
 </header>
 
@@ -1205,7 +1211,7 @@ function renderData(){
   const stops = Object.values(DATA.cores).reduce((n,c) => n + c.stops.length, 0);
   paneData.innerHTML =
    '<h2>What this map is built from</h2>' +
-   '<p style="font-size:12px;color:var(--ink-3);margin:0 0 8px">Build 2026-08-12-60864adc60</p>' +
+   '<p style="font-size:12px;color:var(--ink-3);margin:0 0 8px">Build 2026-08-12-bf23e8368f</p>' +
    '<p style="font-size:13px;color:var(--ink-2);margin:0 0 10px">Room shapes, corridors and doorways ' +
    'were read automatically off the colour floor plan images. Room numbers come from the scanned ' +
    'official plans, matched onto those shapes. Room names still come from reading the colour ' +
@@ -1579,7 +1585,7 @@ window.__setFloor = fid => drawFloor(fid);
       door positions are all unverified, and some are known to be wrong. Distances are estimates.</p>
     <p class="abp">For official information, use <a href="https://www.ccac.edu" target="_blank"
       rel="noopener">ccac.edu</a> or the wayfinding kiosks at the front entrances.</p>
-    <p class="abp" style="color:var(--ink-3);font-size:12px">Build <span id="abver">2026-08-12-60864adc60</span></p>
+    <p class="abp" style="color:var(--ink-3);font-size:12px">Build <span id="abver">2026-08-12-bf23e8368f</span></p>
     <div id="abdata"></div>
   </div>
 </div>

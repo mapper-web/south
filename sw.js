@@ -1,4 +1,4 @@
-const V='2026-08-12-4b9021eac7';
+const V='2026-08-12-92c838d47a';
 const ASSETS=["./", "index.html", "data/bundle.js", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png"];
 
 self.addEventListener('install', e => {
