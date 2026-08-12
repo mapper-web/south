@@ -1246,21 +1246,20 @@ svg.addEventListener('click', () => {
 });
 
 
-/* theme: follow the operating system, with a manual override for this session */
+/* theme: always starts light. Dark is opt-in, per session, via the header button. */
 (function(){
   const root = document.documentElement;
-  const mq = window.matchMedia('(prefers-color-scheme: dark)');
-  let manual = false;
-  const apply = dark => root.setAttribute('data-theme', dark ? 'dark' : 'light');
-  apply(mq.matches);
-  try { mq.addEventListener('change', e => { if (!manual) apply(e.matches); }); } catch(_){}
   const btn = document.getElementById('themetog');
-  if (btn) btn.onclick = () => {
-    manual = true;
-    const dark = root.getAttribute('data-theme') !== 'dark';
-    apply(dark);
-    btn.textContent = dark ? '\u25D1' : '\u25D0';
+  const apply = dark => {
+    root.setAttribute('data-theme', dark ? 'dark' : 'light');
+    if (btn){
+      btn.textContent = dark ? '\u25D0' : '\u25D1';
+      btn.setAttribute('aria-pressed', dark ? 'true' : 'false');
+      btn.title = dark ? 'Switch to light' : 'Switch to dark';
+    }
   };
+  apply(false);
+  if (btn) btn.onclick = () => apply(root.getAttribute('data-theme') !== 'dark');
 })();
 /* ---------------- boot ---------------- */
 buildIndex();
@@ -1316,8 +1315,18 @@ window.__setFloor = fid => drawFloor(fid);
   </div>
 </nav>
 <script>
-/* offline support: only active when served over https, ignored on a local file */
+/* offline support: only active when served over https, ignored on a local file.
+   The worker claims control as soon as it activates, but the page you are looking at
+   was already served from the old cache, so it needs one reload to show new content.
+   This does that reload for you, once, and skips it on a first-ever install. */
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  const hadController = !!navigator.serviceWorker.controller;
+  let reloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || reloading) return;   // first install: nothing stale to replace
+    reloading = true;
+    location.reload();
+  });
   window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
 }
 (function(){
