@@ -135,7 +135,15 @@ svg#map.dragging{cursor:grabbing}
   padding:5px 9px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;
 }
 .pcacts button:hover{border-color:var(--maroon);color:var(--maroon);background:var(--maroon-soft)}
-@media (max-width:520px){ .pcacts button{padding:5px 7px;font-size:11.5px} .pcmain span{display:none} }
+@media (max-width:620px){
+  .pickchip{flex-wrap:wrap;gap:6px;padding:7px 9px}
+  .pcmain{flex:1 1 100%;order:1}
+  .pcmain b{font-size:14px}
+  .pccode{order:2}
+  .pcacts{order:3;flex:1}
+  .pcacts button{flex:1;padding:7px 6px;font-size:12px}
+  .pickchip>button:last-child{order:4}
+}
 .pickchip button{
   flex:none;width:28px;height:28px;border:1px solid var(--edge);background:var(--panel);
   border-radius:6px;font-size:16px;line-height:1;cursor:pointer;color:var(--ink-3);
@@ -804,23 +812,29 @@ document.getElementById('zfit').onclick = fitFloor;
 /* pan / pinch */
 (function(){
   const pts = new Map();
-  let last = null, startDist = 0, startView = null, moved = 0, downAt = 0;
+  let last = null, startDist = 0, startView = null, moved = 0, downAt = 0, downOn = null;
   const toSvg = e => {
     const r = svg.getBoundingClientRect();
     return [view.x + (e.clientX - r.left)/r.width*view.w,
             view.y + (e.clientY - r.top)/r.height*view.h];
   };
+  /* No setPointerCapture: it retargets the click to the <svg>, which differs between
+     browsers and cost us room selection entirely. The element under the finger at
+     pointerdown is recorded instead, and move/up listen on the window so a drag that
+     leaves the map still works. */
   svg.addEventListener('pointerdown', e => {
-    svg.setPointerCapture(e.pointerId);
     pts.set(e.pointerId, e);
-    if (pts.size === 1){ last = toSvg(e); moved = 0; downAt = Date.now(); svg.classList.add('dragging'); }
-    else if (pts.size === 2){
+    if (pts.size === 1){
+      last = toSvg(e); moved = 0; downAt = Date.now();
+      downOn = e.target && e.target.closest ? e.target.closest('.room') : null;
+      svg.classList.add('dragging');
+    } else if (pts.size === 2){
       const [a,b] = [...pts.values()];
       startDist = Math.hypot(a.clientX-b.clientX, a.clientY-b.clientY);
       startView = {...view};
     }
   });
-  svg.addEventListener('pointermove', e => {
+  const onMove = e => {
     if (!pts.has(e.pointerId)) return;
     const prev = pts.get(e.pointerId);
     pts.set(e.pointerId, e);
@@ -836,22 +850,24 @@ document.getElementById('zfit').onclick = fitFloor;
       const nh = nw*(startView.h/startView.w);
       setView({x:startView.x + (startView.w-nw)/2, y:startView.y + (startView.h-nh)/2, w:nw, h:nh});
     }
-  });
-  const end = e => {
+  };
+  const onUp = e => {
+    if (!pts.has(e.pointerId)) return;
     const wasTap = pts.size === 1 && moved < 10 && (Date.now() - downAt) < 700;
+    const target = downOn;
     pts.delete(e.pointerId);
-    if (!pts.size){ last = null; startView = null; svg.classList.remove('dragging'); }
+    if (!pts.size){ last = null; startView = null; downOn = null; svg.classList.remove('dragging'); }
     if (!wasTap) return;
-    const hit = document.elementFromPoint(e.clientX, e.clientY);
-    const room = hit && hit.closest ? hit.closest('.room') : null;
-    if (room && room.dataset.rid) selectRoom(curFid, room.dataset.rid);
+    if (target && target.dataset.rid) selectRoom(curFid, target.dataset.rid);
     else clearPick();
   };
-  svg.addEventListener('pointerup', end);
-  svg.addEventListener('pointercancel', e => {
+  const onCancel = e => {
     pts.delete(e.pointerId);
-    if (!pts.size){ last = null; startView = null; svg.classList.remove('dragging'); }
-  });
+    if (!pts.size){ last = null; startView = null; downOn = null; svg.classList.remove('dragging'); }
+  };
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', onUp);
+  window.addEventListener('pointercancel', onCancel);
   svg.addEventListener('wheel', e => {
     e.preventDefault();
     const [x,y] = toSvg(e);
