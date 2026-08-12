@@ -94,9 +94,7 @@ header{
   padding:4px 10px;border-radius:99px;font-size:12px;font-weight:600;cursor:pointer;
 }
 .nearest button:hover{border-color:var(--maroon);color:var(--maroon);background:var(--maroon-soft)}
-.nearest button[aria-expanded=true]{border-color:var(--maroon);color:var(--maroon);background:var(--maroon-soft)}
-.nearsub{padding-left:2px}
-.nearsub[hidden]{display:none}
+.nearest>span{min-width:96px}
 .toggle{display:flex;align-items:center;gap:7px;font-size:13px;white-space:nowrap;cursor:pointer;color:var(--ink-2)}
 .toggle input{width:16px;height:16px;accent-color:var(--maroon);margin:0}
 
@@ -131,6 +129,13 @@ svg#map.dragging{cursor:grabbing}
 .pcmain b{display:block;font-size:14.5px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pcmain span{font-size:12px;color:var(--ink-3)}
 .pccode{font-family:var(--mono);font-size:12.5px;font-weight:600;color:var(--maroon);flex:none}
+.pcacts{display:flex;gap:5px;flex:none}
+.pcacts button{
+  border:1px solid var(--edge);background:var(--surface-2);color:var(--ink-2);
+  padding:5px 9px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;
+}
+.pcacts button:hover{border-color:var(--maroon);color:var(--maroon);background:var(--maroon-soft)}
+@media (max-width:520px){ .pcacts button{padding:5px 7px;font-size:11.5px} .pcmain span{display:none} }
 .pickchip button{
   flex:none;width:28px;height:28px;border:1px solid var(--edge);background:var(--panel);
   border-radius:6px;font-size:16px;line-height:1;cursor:pointer;color:var(--ink-3);
@@ -391,20 +396,19 @@ html[data-theme="dark"]{
     </label>
     <button class="go" id="go" disabled>Get directions</button>
   </div>
-  <div class="nearest" id="nearest">
-    <span>Nearest</span>
-    <button id="wcbtn" aria-expanded="false">Restroom&hellip;</button>
+  <div class="nearest">
+    <span>Nearest restroom</span>
+    <button data-near="restroom_w">Women&rsquo;s</button>
+    <button data-near="restroom_m">Men&rsquo;s</button>
+    <button data-near="restroom_a">All gender</button>
+    <button data-near="restroom">Any</button>
+  </div>
+  <div class="nearest">
+    <span>Also find</span>
     <button data-near="elevator">Elevator</button>
     <button data-near="stairs">Stairs</button>
     <button data-near="exit">Exit</button>
     <button data-near="lab">Computer lab</button>
-  </div>
-  <div class="nearest nearsub" id="nearsub" hidden>
-    <span>Which one</span>
-    <button data-near="restroom_w">Women&rsquo;s</button>
-    <button data-near="restroom_m">Men&rsquo;s</button>
-    <button data-near="restroom_a">All gender</button>
-    <button data-near="restroom">Any, nearest</button>
   </div>
 </header>
 
@@ -415,6 +419,10 @@ html[data-theme="dark"]{
     <div class="pickchip" id="pickchip" hidden>
       <div class="pcmain"><b id="pcname"></b><span id="pctype"></span></div>
       <span class="pccode" id="pccode"></span>
+      <span class="pcacts">
+        <button id="pcfrom">From here</button>
+        <button id="pcto">To here</button>
+      </span>
       <button id="pcclose" aria-label="Deselect">&times;</button>
     </div>
     <div class="zoomers">
@@ -1086,12 +1094,25 @@ function showChip(r, f){
 }
 function hideChip(){ document.getElementById('pickchip').hidden = true; }
 
+/* used by the bar over the map and by the buttons in the Room panel */
+function setEndpoint(which, fid, rid){
+  const r = findRoom(fid, rid), f = FLOORS[fid];
+  pick[which] = {fid, rid};
+  inputs[which].value = roomTitle(r) + ' — ' + f.name;
+  clears[which].hidden = false;
+  routeNote = '';
+  updateGo();
+  if (pick.from && pick.to) doRoute();
+}
+
 function selectRoom(fid, rid){
   if (fid !== curFid) drawFloor(fid);
   selRoom = {fid, rid};
   svg.querySelectorAll('.room').forEach(p => p.classList.toggle('sel', p.dataset.rid === rid));
   const r = findRoom(fid, rid), f = FLOORS[fid];
   showChip(r, f);
+  // with nothing set yet, a click is almost always "I am here"
+  if (!pick.from) setEndpoint('from', fid, rid);
   const aliases = r.aliases || [];
   let h = '<div class="card"><h3>' + (r.name || TYPE_LABEL[r.type]) + '</h3>';
   h += '<div class="code">' + (r.code || 'no code read') + ' · ' + f.name + '</div>';
@@ -1116,14 +1137,8 @@ function selectRoom(fid, rid){
        '<button data-set="to">Route to here</button></div></div>';
   paneInfo.innerHTML = h;
   setTab('info', false);
-  paneInfo.querySelectorAll('[data-set]').forEach(b => b.onclick = () => {
-    const which = b.dataset.set;
-    pick[which] = {fid, rid};
-    inputs[which].value = roomTitle(r) + ' — ' + f.name;
-    clears[which].hidden = false;
-    updateGo();
-    if (pick.from && pick.to) doRoute();
-  });
+  paneInfo.querySelectorAll('[data-set]').forEach(b =>
+    b.onclick = () => setEndpoint(b.dataset.set, fid, rid));
 }
 
 function renderData(){
@@ -1189,7 +1204,13 @@ function renderArrive(){
    '<h2>By bus</h2>' +
    '<p style="font-size:13.5px;color:var(--ink-2);margin:0 0 6px">Routes <b>55</b>, <b>Y47</b> and ' +
    '<b>Y49</b> stop at <b>South Campus Drvwy + Library Entrance</b>, roughly a two-minute walk from ' +
-   'the door. The Y47 and Y49 both end their run at that driveway.</p>' +
+   'the door. The Y47 and Y49 both end their run at that driveway, and the campus is a named ' +
+   'timepoint on their schedules.</p>' +
+   '<p style="font-size:13.5px;margin:0 0 4px">' +
+   L('https://www.rideprt.org/all-schedules/', 'PRT schedules for all routes') + '<br>' +
+   L('https://www.rideprt.org/pdfs/Y47.pdf', 'Y47 and Y49 timetable (PDF)') + '<br>' +
+   L('https://www.rideprt.org/', 'Pittsburgh Regional Transit') +
+   '</p>' +
 
    '<h2>Which door to use</h2>' +
    '<div class="note">For the library, CCAC says to enter at the <b>traffic circle entrance</b> and go ' +
@@ -1379,14 +1400,7 @@ function doNearest(cat){
 }
 document.querySelectorAll('[data-near]').forEach(b =>
   b.onclick = () => doNearest(b.dataset.near));
-(function(){
-  const btn = document.getElementById('wcbtn'), sub = document.getElementById('nearsub');
-  btn.onclick = () => {
-    const open = sub.hidden;
-    sub.hidden = !open;
-    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-  };
-})();
+
 document.getElementById('go').onclick = () => { routeNote = ''; doRoute(); };
 document.getElementById('stepfree').onchange = () => { if (pick.from && pick.to) doRoute(); };
 
@@ -1471,6 +1485,10 @@ function clearPick(){
 }
 svg.addEventListener('click', clearPick);
 document.getElementById('pcclose').onclick = clearPick;
+document.getElementById('pcfrom').onclick = () =>
+  { if (selRoom) setEndpoint('from', selRoom.fid, selRoom.rid); };
+document.getElementById('pcto').onclick = () =>
+  { if (selRoom) setEndpoint('to', selRoom.fid, selRoom.rid); };
 
 
 /* theme: always starts light. Dark is opt-in, per session, via the header button. */
