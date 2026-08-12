@@ -99,6 +99,8 @@ svg#map.dragging{cursor:grabbing}
 .circ{fill:var(--f-circ);stroke:var(--wall-2);stroke-width:.8;vector-effect:non-scaling-stroke;pointer-events:none}
 .rlabel{font-family:var(--mono);font-size:9px;fill:var(--label);text-anchor:middle;pointer-events:none;paint-order:stroke;stroke:var(--halo);stroke-width:2.4px}
 .rlabel.guess{fill:var(--guess)}
+.rname{font-family:var(--display);font-size:7.5px;font-weight:600;fill:var(--ink-2);
+  text-anchor:middle;pointer-events:none;paint-order:stroke;stroke:var(--halo);stroke-width:2.2px}
 .route-casing{fill:none;stroke:var(--casing);stroke-width:9;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
 .route-line{fill:none;stroke:var(--route);stroke-width:5;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
 .route-line.dash{stroke-dasharray:9 7}
@@ -107,6 +109,22 @@ svg#map.dragging{cursor:grabbing}
   .pulse{animation:pulse 2s ease-out infinite}
   @keyframes pulse{0%{r:7;opacity:.55}70%{r:19;opacity:0}100%{r:19;opacity:0}}
 }
+.pickchip{
+  position:absolute;left:12px;right:12px;top:12px;z-index:12;display:flex;align-items:center;gap:10px;
+  background:var(--panel);border:1px solid var(--maroon);border-left:4px solid var(--maroon);
+  border-radius:var(--r);padding:8px 10px;box-shadow:var(--shadow);
+}
+.pickchip[hidden]{display:none}
+.pcmain{flex:1;min-width:0}
+.pcmain b{display:block;font-size:14.5px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pcmain span{font-size:12px;color:var(--ink-3)}
+.pccode{font-family:var(--mono);font-size:12.5px;font-weight:600;color:var(--maroon);flex:none}
+.pickchip button{
+  flex:none;width:28px;height:28px;border:1px solid var(--edge);background:var(--panel);
+  border-radius:6px;font-size:16px;line-height:1;cursor:pointer;color:var(--ink-3);
+}
+.pickchip button:hover{border-color:var(--maroon);color:var(--maroon)}
+@media (max-width:860px){ .floortag{display:none} .pickchip{top:10px} }
 .zoomers{position:absolute;right:12px;bottom:12px;display:flex;flex-direction:column;gap:6px;z-index:10}
 .zoomers button{
   width:34px;height:34px;border:1px solid var(--edge);background:var(--panel);border-radius:var(--r);
@@ -205,15 +223,24 @@ ol.steps li:last-child{border-bottom:0}
 /* mobile */
 .sheetgrip{display:none}
 @media (max-width:860px){
+  header{padding:7px 10px 7px;gap:8px}
+  .brand{width:100%;gap:7px}
+  .brand b{font-size:15px}
+  .routebar{gap:6px}
+  .field{min-width:118px}
+  .field input{padding:8px 26px 8px 9px}
+  .go{padding:9px 13px}
+  .toggle{font-size:12.5px}
+  .tabs button{padding:9px 3px;font-size:11px;letter-spacing:.05em}
   main{flex-direction:column}
   aside{
     width:auto;border-left:0;border-top:1px solid var(--edge);
-    position:absolute;left:0;right:0;bottom:0;max-height:62%;
+    position:absolute;left:0;right:0;bottom:0;max-height:54%;
     border-radius:12px 12px 0 0;box-shadow:0 -6px 24px rgba(22,25,29,.12);z-index:15;
   }
   aside.collapsed .tabs,aside.collapsed .pane{display:none}
   .sheetgrip{
-    display:flex;justify-content:center;padding:7px 0 4px;cursor:pointer;
+    display:flex;justify-content:center;padding:5px 0 3px;cursor:pointer;
     border-radius:12px 12px 0 0;background:var(--panel);
   }
   .sheetgrip i{width:38px;height:4px;border-radius:99px;background:var(--edge)}
@@ -310,6 +337,15 @@ html[data-theme="dark"]{
   display:flex;align-items:center;justify-content:center;color:var(--ink-3);font-size:12px}
 .fshdr{display:grid;grid-template-columns:26px repeat(5,1fr);gap:4px;margin-bottom:2px}
 .fshdr span{text-align:center;font-size:12px;font-weight:700;color:var(--ink-2)}
+.fskey{display:grid;grid-template-columns:1fr 1fr;gap:5px 10px;font-size:12px;margin-top:12px}
+.fskey span{display:flex;align-items:center;gap:6px;color:var(--ink-2)}
+.fskey i{width:13px;height:13px;border:1px solid var(--wall);border-radius:2px;flex:none}
+@media (max-width:860px){
+  .disclaim{padding:3px 8px;font-size:10.5px}
+  .navmain{padding:3px 6px;padding-bottom:calc(3px + env(safe-area-inset-bottom))}
+  .navbtn{padding:4px 3px;font-size:10.5px;gap:0}
+  .navbtn .ni{font-size:14px}
+}
 .fsnote{font-size:12.5px;color:var(--ink-2);background:var(--note-bg);border-left:3px solid var(--edge);
   padding:9px 11px;border-radius:0 8px 8px 0;margin:12px 0 0}
 </style>
@@ -347,6 +383,11 @@ html[data-theme="dark"]{
   <div id="mapwrap">
     <svg id="map" role="img" aria-label="Floor plan"></svg>
     <div class="floortag"><b id="ftname">—</b><div id="ftmeta"></div></div>
+    <div class="pickchip" id="pickchip" hidden>
+      <div class="pcmain"><b id="pcname"></b><span id="pctype"></span></div>
+      <span class="pccode" id="pccode"></span>
+      <button id="pcclose" aria-label="Deselect">&times;</button>
+    </div>
     <div class="zoomers">
       <button id="zin" title="Zoom in" aria-label="Zoom in">+</button>
       <button id="zout" title="Zoom out" aria-label="Zoom out">&minus;</button>
@@ -358,16 +399,12 @@ html[data-theme="dark"]{
     <div class="sheetgrip" id="grip"><i></i></div>
     <div class="tabs" role="tablist">
       <button role="tab" id="tab-route" aria-selected="true" aria-controls="pane-route">Route</button>
-      <button role="tab" id="tab-floors" aria-selected="false" aria-controls="pane-floors">Floors</button>
       <button role="tab" id="tab-info" aria-selected="false" aria-controls="pane-info">Room</button>
       <button role="tab" id="tab-arrive" aria-selected="false" aria-controls="pane-arrive">Arrive</button>
-      <button role="tab" id="tab-data" aria-selected="false" aria-controls="pane-data">Data</button>
     </div>
     <div class="pane" id="pane-route" role="tabpanel"></div>
-    <div class="pane" id="pane-floors" role="tabpanel" hidden></div>
     <div class="pane" id="pane-info" role="tabpanel" hidden></div>
     <div class="pane" id="pane-arrive" role="tabpanel" hidden></div>
-    <div class="pane" id="pane-data" role="tabpanel" hidden></div>
   </aside>
 </main>
 
@@ -654,14 +691,31 @@ function drawFloor(fid){
     g2.appendChild(el('title', {}, null)).textContent = e.label;
   }
   for (const r of f.rooms){
-    if (!r.code || r.area < 900) continue;
-    const t = el('text', {x:r.cx, y:r.cy + 3,
-      class:'rlabel' + (r.codeSrc === 'ocr' ? ' guess' : '')}, g);
-    t.textContent = r.code;
+    if (r.area < 900) continue;
+    if (!r.code && !r.name) continue;
+    // A name only shows if it fits. Width is capped by area as well as by the bounding
+    // box, because an L-shaped room has a box far wider than the space at its centroid.
+    const room_w = Math.min(r.bbox[2] - 6, Math.sqrt(r.area) * 1.5) * 0.92;
+    let nm = r.name || '';
+    if (nm && (r.area < 2000 || nm.length * 4.6 > room_w)){
+      const fits = Math.max(0, Math.floor(room_w / 4.6));
+      nm = fits >= 6 && r.area >= 2000 ? nm.slice(0, fits - 1).trimEnd() + '\u2026' : '';
+    }
+    const two = !!(r.code && nm);
+    if (r.code){
+      const t = el('text', {x:r.cx, y:r.cy + (two ? -1 : 3),
+        class:'rlabel' + (r.codeSrc === 'ocr' ? ' guess' : '')}, g);
+      t.textContent = r.code;
+    }
+    if (nm){
+      const t2 = el('text', {x:r.cx, y:r.cy + (two ? 8 : 3), class:'rname'}, g);
+      t2.textContent = nm;
+    }
   }
   svg.__g = g;
   fitFloor();
   drawRouteOverlay();
+  if (!selRoom || selRoom.fid !== fid) hideChip();
   document.getElementById('ftname').textContent = f.name;
   document.getElementById('ftmeta').textContent =
     f.rooms.length + ' rooms · ' + (f.pxPerFt ? '≈' + (1/f.pxPerFt*100|0)/100 + ' ft/px' : '');
@@ -917,20 +971,28 @@ function drawRouteOverlay(){
 
 /* ---------------- panels ---------------- */
 const paneRoute = document.getElementById('pane-route');
-const paneFloors = document.getElementById('pane-floors');
+const paneFloors = document.createElement('div');
 const paneInfo = document.getElementById('pane-info');
 const paneArrive = document.getElementById('pane-arrive');
-const paneData = document.getElementById('pane-data');
+const paneData = document.createElement('div');
 
+const TABS = ['route','info','arrive'];
+function setTab(n, expand){
+  document.querySelectorAll('.tabs button').forEach(x =>
+    x.setAttribute('aria-selected', x.id === 'tab-' + n));
+  for (const t of TABS){
+    const pane = document.getElementById('pane-' + t);
+    if (pane) pane.hidden = (t !== n);
+  }
+  if (expand && window.innerWidth <= 860)
+    document.getElementById('side').classList.remove('collapsed');
+}
 document.querySelectorAll('.tabs button').forEach(b => {
-  b.onclick = () => {
-    document.querySelectorAll('.tabs button').forEach(x => x.setAttribute('aria-selected', x === b));
-    ['route','floors','info','arrive','data'].forEach(n =>
-      document.getElementById('pane-' + n).hidden = (b.id !== 'tab-' + n));
-    if (window.innerWidth <= 860) document.getElementById('side').classList.remove('collapsed');
-  };
+  b.onclick = () => setTab(b.id.slice(4), true);
 });
-function showTab(n){ document.getElementById('tab-' + n).click(); }
+/* room taps switch the tab but leave the sheet where it is: the bar over the map
+   already gives the answer, so on a phone the map keeps the screen */
+function showTab(n){ setTab(n, true); }
 
 function renderStack(){
   const wings = Object.keys(DATA.wings);
@@ -962,11 +1024,22 @@ function renderStack(){
     b.onclick = () => { drawFloor(b.dataset.fid); });
 }
 
+function showChip(r, f){
+  const chip = document.getElementById('pickchip');
+  document.getElementById('pcname').textContent = r.name || TYPE_LABEL[r.type];
+  document.getElementById('pctype').textContent =
+    (r.name ? TYPE_LABEL[r.type] + ' · ' : '') + f.name;
+  document.getElementById('pccode').textContent = r.code || '';
+  chip.hidden = false;
+}
+function hideChip(){ document.getElementById('pickchip').hidden = true; }
+
 function selectRoom(fid, rid){
   if (fid !== curFid) drawFloor(fid);
   selRoom = {fid, rid};
   svg.querySelectorAll('.room').forEach(p => p.classList.toggle('sel', p.dataset.rid === rid));
   const r = findRoom(fid, rid), f = FLOORS[fid];
+  showChip(r, f);
   const aliases = r.aliases || [];
   let h = '<div class="card"><h3>' + (r.name || TYPE_LABEL[r.type]) + '</h3>';
   h += '<div class="code">' + (r.code || 'no code read') + ' · ' + f.name + '</div>';
@@ -988,6 +1061,7 @@ function selectRoom(fid, rid){
   h += '<div class="rowbtns"><button data-set="from">Route from here</button>' +
        '<button data-set="to">Route to here</button></div></div>';
   paneInfo.innerHTML = h;
+  setTab('info', false);
   paneInfo.querySelectorAll('[data-set]').forEach(b => b.onclick = () => {
     const which = b.dataset.set;
     pick[which] = {fid, rid};
@@ -996,7 +1070,6 @@ function selectRoom(fid, rid){
     updateGo();
     if (pick.from && pick.to) doRoute();
   });
-  showTab('info');
 }
 
 function renderData(){
@@ -1240,10 +1313,13 @@ function renderRoutePane(dir){
 document.getElementById('grip').onclick = () =>
   document.getElementById('side').classList.toggle('collapsed');
 if (window.innerWidth <= 860) document.getElementById('side').classList.add('collapsed');
-svg.addEventListener('click', () => {
+function clearPick(){
   selRoom = null;
   svg.querySelectorAll('.room.sel').forEach(p => p.classList.remove('sel'));
-});
+  hideChip();
+}
+svg.addEventListener('click', clearPick);
+document.getElementById('pcclose').onclick = clearPick;
 
 
 /* theme: always starts light. Dark is opt-in, per session, via the header button. */
@@ -1281,9 +1357,9 @@ window.__setFloor = fid => drawFloor(fid);
   <div class="fsback" id="abback"></div>
   <div class="fspanel" role="dialog" aria-label="About this map" aria-modal="true">
     <div class="fshead"><b>About this map</b><button id="abclose" aria-label="Close">&times;</button></div>
-    <p class="abp"><b>This is an unofficial map.</b> It was made by a student. It is not produced,
-      reviewed, endorsed or maintained by the Community College of Allegheny County, and the college
-      is not responsible for anything in it. Nobody who made it is employed by or affiliated with CCAC.</p>
+    <p class="abp"><b>This is an unofficial map.</b> It was made independently, by someone who does not
+      attend or work for the college. It is not produced, reviewed, endorsed or maintained by the
+      Community College of Allegheny County, and the college is not responsible for anything in it.</p>
     <p class="abp"><b>Do not rely on it in an emergency.</b> Follow the posted evacuation plans and the
       instructions of college staff.</p>
     <p class="abp"><b>Nothing here has been checked against the building.</b> Room numbers were read from
@@ -1291,6 +1367,7 @@ window.__setFloor = fid => drawFloor(fid);
       door positions are all unverified, and some are known to be wrong. Distances are estimates.</p>
     <p class="abp">For official information, use <a href="https://www.ccac.edu" target="_blank"
       rel="noopener">ccac.edu</a> or the wayfinding kiosks at the front entrances.</p>
+    <div id="abdata"></div>
   </div>
 </div>
 <div class="floorsheet" id="floorsheet" hidden>
@@ -1366,6 +1443,11 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
       }
       h += '</div>';
     }
+    if (typeof TYPE_FILL !== 'undefined'){
+      h += '<div class="fskey">' + Object.keys(TYPE_FILL).map(t =>
+        '<span><i style="background:' + TYPE_FILL[t] + '"></i>' + TYPE_LABEL[t] + '</span>').join('') +
+        '</div>';
+    }
     const g = document.getElementById('fsgrid');
     g.innerHTML = h;
     g.querySelectorAll('[data-fid]').forEach(b => b.onclick = () => {
@@ -1381,7 +1463,11 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !sheet.hidden) close(); });
 
   const ab = document.getElementById('aboutsheet');
-  const abOpen = () => { ab.hidden = false; };
+  const abOpen = () => {
+    const slot = document.getElementById('abdata');
+    if (slot && !slot.innerHTML && window.__dataPanel) slot.innerHTML = window.__dataPanel();
+    ab.hidden = false;
+  };
   const abClose = () => { ab.hidden = true; };
   document.getElementById('aboutlink').onclick = abOpen;
   document.getElementById('abclose').onclick = abClose;
