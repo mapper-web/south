@@ -94,6 +94,9 @@ header{
   padding:4px 10px;border-radius:99px;font-size:12px;font-weight:600;cursor:pointer;
 }
 .nearest button:hover{border-color:var(--maroon);color:var(--maroon);background:var(--maroon-soft)}
+.nearest button[aria-expanded=true]{border-color:var(--maroon);color:var(--maroon);background:var(--maroon-soft)}
+.nearsub{padding-left:2px}
+.nearsub[hidden]{display:none}
 .toggle{display:flex;align-items:center;gap:7px;font-size:13px;white-space:nowrap;cursor:pointer;color:var(--ink-2)}
 .toggle input{width:16px;height:16px;accent-color:var(--maroon);margin:0}
 
@@ -390,11 +393,18 @@ html[data-theme="dark"]{
   </div>
   <div class="nearest" id="nearest">
     <span>Nearest</span>
-    <button data-near="restroom">Restroom</button>
+    <button id="wcbtn" aria-expanded="false">Restroom&hellip;</button>
     <button data-near="elevator">Elevator</button>
     <button data-near="stairs">Stairs</button>
     <button data-near="exit">Exit</button>
     <button data-near="lab">Computer lab</button>
+  </div>
+  <div class="nearest nearsub" id="nearsub" hidden>
+    <span>Which one</span>
+    <button data-near="restroom_w">Women&rsquo;s</button>
+    <button data-near="restroom_m">Men&rsquo;s</button>
+    <button data-near="restroom_a">All gender</button>
+    <button data-near="restroom">Any, nearest</button>
   </div>
 </header>
 
@@ -1285,16 +1295,21 @@ function updateGo(){ document.getElementById('go').disabled = !(pick.from && pic
 /* Results are named by category rather than by the room's own label. Room type comes
    from the drawings' colour key and is dependable; the names are not, and the stair and
    lift cores mostly have no name at all. min excludes slivers of a larger room. */
+const WC = r => r.type === 'restroom';
 const NEAREST = {
-  restroom: {label:'restroom',     title:'Restroom',     min:700,  pick:r => r.type === 'restroom'},
+  restroom:   {label:'restroom', title:'Restroom', min:700, pick:WC},
+  restroom_w: {label:"women's restroom",  title:'Restroom', min:700, pick:WC, want:'women'},
+  restroom_m: {label:"men's restroom",    title:'Restroom', min:700, pick:WC, want:'men'},
+  restroom_a: {label:'all-gender restroom', title:'Restroom', min:700, pick:WC, want:'all-gender'},
   elevator: {label:'elevator',     title:'Elevator',     min:0,    pick:r => r.coreKind === 'elevator'},
   stairs:   {label:'stairwell',    title:'Stairs',       min:0,    pick:r => r.coreKind === 'stair'},
   lab:      {label:'computer lab', title:'Computer lab', min:1500, pick:r => r.type === 'lab'},
   exit:     {label:'way out',      title:'Exit',         entrances:true},
 };
 const nearCache = {};
-function nearTargets(cat){
-  if (nearCache[cat]) return nearCache[cat];
+function nearTargets(cat, unlabelled){
+  const ck = cat + (unlabelled ? ':?' : '');
+  if (nearCache[ck]) return nearCache[ck];
   const spec = NEAREST[cat], out = [];
   if (spec.entrances){
     for (const e of (DATA.entrances || [])){
@@ -1304,11 +1319,15 @@ function nearTargets(cat){
   } else {
     for (const fid of ORDER) for (const r of FLOORS[fid].rooms){
       if (!spec.pick(r) || !r.door || r.area < (spec.min || 0)) continue;
+      if (spec.want){
+        // a room only counts as a match if the drawing actually says so
+        if (unlabelled ? !!r.gender : r.gender !== spec.want) continue;
+      } else if (unlabelled) continue;
       out.push({fid, idx:nearestCell(fid, r.door[0], r.door[1], 20), rid:r.id});
     }
   }
-  nearCache[cat] = out.filter(t => t.idx >= 0);
-  return nearCache[cat];
+  nearCache[ck] = out.filter(t => t.idx >= 0);
+  return nearCache[ck];
 }
 function doNearest(cat){
   const spec = NEAREST[cat];
@@ -1324,8 +1343,23 @@ function doNearest(cat){
   if (ai < 0) return;
   const stepFree = document.getElementById('stepfree').checked;
   const here = pick.from.rid;
-  const found = findNearest(A._fid, ai,
+  let found = findNearest(A._fid, ai,
     nearTargets(cat).filter(t => t.rid !== here), stepFree);
+  routeNote = '';
+  if (spec.want){
+    // restrooms whose sign was never recorded are handled separately, out loud
+    const vague = findNearest(A._fid, ai,
+      nearTargets(cat, true).filter(t => t.rid !== here), stepFree);
+    if (!found && vague){
+      found = vague;
+      routeNote = 'No ' + spec.label + ' has been identified that you can reach from here. ' +
+        'This is the nearest restroom of any kind, and which one it is was never recorded — ' +
+        'check the sign before you go in.';
+    } else if (found && vague && vague.cost < found.cost - 8){
+      routeNote = 'There is a closer restroom on the way, but which one it is was never ' +
+        'recorded, so this route goes to the nearest confirmed ' + spec.label + ' instead.';
+    }
+  }
   if (!found){
     paneRoute.innerHTML = '<div class="note warn">No ' + spec.label + ' could be reached from there ' +
       (stepFree ? 'without stairs' : '') + '. That usually means a missing stair, lift or wing link ' +
@@ -1345,7 +1379,15 @@ function doNearest(cat){
 }
 document.querySelectorAll('[data-near]').forEach(b =>
   b.onclick = () => doNearest(b.dataset.near));
-document.getElementById('go').onclick = doRoute;
+(function(){
+  const btn = document.getElementById('wcbtn'), sub = document.getElementById('nearsub');
+  btn.onclick = () => {
+    const open = sub.hidden;
+    sub.hidden = !open;
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  };
+})();
+document.getElementById('go').onclick = () => { routeNote = ''; doRoute(); };
 document.getElementById('stepfree').onchange = () => { if (pick.from && pick.to) doRoute(); };
 
 /* ---------------- run a route ---------------- */
@@ -1400,6 +1442,7 @@ function renderRoutePane(dir){
   let h = '<div class="summary"><div>On the level<b>' + dir.totalFt + ' ft</b></div>' +
           '<div>About<b>' + mins + ' min</b></div>' +
           '<div>Levels<b>' + dir.verticals + '</b></div></div>';
+  if (routeNote) h += '<div class="note warn">' + routeNote + '</div>';
   if (route.stepFree) h += '<div class="note">Step-free route: elevators only, no stairs.</div>';
   dir.legs.forEach((leg,i) => {
     h += '<div class="leg"><button data-fid="' + leg.fid + '">' +
