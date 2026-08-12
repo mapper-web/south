@@ -41,7 +41,8 @@ header{
   padding:10px 16px; display:flex; gap:16px; align-items:center; flex-wrap:wrap;
   z-index:20;
 }
-.brand{display:flex;align-items:baseline;gap:9px;margin-right:4px}
+.brand{display:flex;align-items:center;gap:9px;margin-right:4px}
+.brand .themetog{margin-left:auto}
 .brand b{font-weight:700;letter-spacing:-.015em;font-size:16px}
 .brand span{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-3)}
 .plate{
@@ -86,6 +87,7 @@ header{
 .go:hover{background:var(--maroon-ink)}
 .go:disabled{background:#b9c2ca;cursor:not-allowed}
 .nearest{display:flex;align-items:center;gap:6px;flex-wrap:wrap;width:100%}
+.nearest::-webkit-scrollbar{display:none}
 .nearest>span{
   font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:var(--ink-3);font-weight:700;
 }
@@ -258,13 +260,24 @@ ol.steps li:last-child{border-bottom:0}
   .field input{padding:8px 26px 8px 9px}
   .go{padding:9px 13px}
   .toggle{font-size:12.5px}
-  .tabs button{padding:9px 3px;font-size:11px;letter-spacing:.05em}
-  .nearest{gap:5px}
-  .nearest button{padding:4px 8px;font-size:11.5px}
+  .tabs button{padding:8px 3px;font-size:11px;letter-spacing:.05em}
+  /* one line each, scrolling sideways rather than stacking into a third row */
+  .nearest{gap:5px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+  .nearest>span{min-width:auto;flex:none}
+  .nearest button{padding:4px 9px;font-size:11.5px;flex:none}
+  .go{padding:8px 12px;font-size:14px}
+  .summary{padding:8px;gap:10px;margin-bottom:10px}
+  .summary b{font-size:15px}
+  .summary div{font-size:11px}
+  ol.steps li{padding:6px 9px;font-size:13px}
+  .pickchip{padding:6px 8px}
+  .pcmain b{font-size:13.5px}
+  .leg>button{padding:8px 9px}
   main{flex-direction:column}
+  #mapwrap{min-height:40dvh}
   aside{
     width:auto;border-left:0;border-top:1px solid var(--edge);
-    position:absolute;left:0;right:0;bottom:0;max-height:54%;
+    position:absolute;left:0;right:0;bottom:0;max-height:44%;
     border-radius:12px 12px 0 0;box-shadow:0 -6px 24px rgba(22,25,29,.12);z-index:15;
   }
   aside.collapsed .tabs,aside.collapsed .pane{display:none}
@@ -386,8 +399,9 @@ html[data-theme="dark"]{
   <div class="brand">
     <span class="plate un">UNOFFICIAL</span>
     <b>South Campus Wayfinder</b>
+    <button class="themetog" id="themetog" title="Light or dark"
+            aria-label="Switch between light and dark">&#9681;</button>
   </div>
-  <button class="themetog" id="themetog" title="Light or dark" aria-label="Switch between light and dark">◑</button>
   <div class="routebar">
     <div class="field" id="f-from">
       <label for="i-from">I'm near</label>
@@ -1191,7 +1205,7 @@ function renderData(){
   const stops = Object.values(DATA.cores).reduce((n,c) => n + c.stops.length, 0);
   paneData.innerHTML =
    '<h2>What this map is built from</h2>' +
-   '<p style="font-size:12px;color:var(--ink-3);margin:0 0 8px">Build 2026-08-12-098290d5d4</p>' +
+   '<p style="font-size:12px;color:var(--ink-3);margin:0 0 8px">Build 2026-08-12-60864adc60</p>' +
    '<p style="font-size:13px;color:var(--ink-2);margin:0 0 10px">Room shapes, corridors and doorways ' +
    'were read automatically off the colour floor plan images. Room numbers come from the scanned ' +
    'official plans, matched onto those shapes. Room names still come from reading the colour ' +
@@ -1485,7 +1499,7 @@ function renderRoutePane(dir){
   const unver = dir.legs.some(l => l.steps.some(s => s.warn));
   let h = '<div class="summary"><div>On the level<b>' + dir.totalFt + ' ft</b></div>' +
           '<div>About<b>' + mins + ' min</b></div>' +
-          '<div>Levels<b>' + dir.verticals + '</b></div></div>';
+          (dir.verticals ? '<div>Levels<b>' + dir.verticals + '</b></div>' : '') + '</div>';
   if (routeNote) h += '<div class="note warn">' + routeNote + '</div>';
   if (route.stepFree) h += '<div class="note">Step-free route: elevators only, no stairs.</div>';
   dir.legs.forEach((leg,i) => {
@@ -1565,7 +1579,7 @@ window.__setFloor = fid => drawFloor(fid);
       door positions are all unverified, and some are known to be wrong. Distances are estimates.</p>
     <p class="abp">For official information, use <a href="https://www.ccac.edu" target="_blank"
       rel="noopener">ccac.edu</a> or the wayfinding kiosks at the front entrances.</p>
-    <p class="abp" style="color:var(--ink-3);font-size:12px">Build <span id="abver">2026-08-12-098290d5d4</span></p>
+    <p class="abp" style="color:var(--ink-3);font-size:12px">Build <span id="abver">2026-08-12-60864adc60</span></p>
     <div id="abdata"></div>
   </div>
 </div>
