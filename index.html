@@ -725,7 +725,7 @@ function search(q){
 /* ---------------- map rendering ---------------- */
 const svg = document.getElementById('map');
 const NS = 'http://www.w3.org/2000/svg';
-let curFid = '3b', view = {x:0,y:0,w:0,h:0}, selRoom = null, route = null, routeLegs = [];
+let curFid = '3b', view = {x:0,y:0,w:0,h:0}, selRoom = null, route = null, routeLegs = [], routeNote = '';
 
 function el(n, attrs, parent){
   const e = document.createElementNS(NS, n);
@@ -1137,8 +1137,9 @@ function selectRoom(fid, rid){
   svg.querySelectorAll('.room').forEach(p => p.classList.toggle('sel', p.dataset.rid === rid));
   const r = findRoom(fid, rid), f = FLOORS[fid];
   showChip(r, f);
-  // with nothing set yet, a click is almost always "I am here"
-  if (!pick.from) setEndpoint('from', fid, rid);
+  // with nothing set yet, a click is almost always "I am here" — but never
+  // turn the destination someone just chose into their starting point
+  if (!pick.from && !(pick.to && pick.to.rid === rid)) setEndpoint('from', fid, rid);
   const aliases = r.aliases || [];
   let h = '<div class="card"><h3>' + (r.name || TYPE_LABEL[r.type]) + '</h3>';
   h += '<div class="code">' + (r.code || 'no code read') + ' · ' + f.name + '</div>';
