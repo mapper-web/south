@@ -145,11 +145,12 @@ svg#map.dragging{cursor:grabbing}
   .pcacts button{flex:1 1 auto;padding:8px 12px;font-size:12.5px}
   .pickchip>button:last-child{order:4}
 }
-.pickchip button{
+/* the close button only — scoped by id so it cannot swallow the From/To buttons */
+#pcclose{
   flex:none;width:28px;height:28px;border:1px solid var(--edge);background:var(--panel);
   border-radius:6px;font-size:16px;line-height:1;cursor:pointer;color:var(--ink-3);
 }
-.pickchip button:hover{border-color:var(--maroon);color:var(--maroon)}
+#pcclose:hover{border-color:var(--maroon);color:var(--maroon)}
 @media (max-width:860px){ .floortag{display:none} .pickchip{top:10px} }
 .zoomers{position:absolute;right:12px;bottom:12px;display:flex;flex-direction:column;gap:6px;z-index:10}
 .zoomers button{
@@ -1190,7 +1191,7 @@ function renderData(){
   const stops = Object.values(DATA.cores).reduce((n,c) => n + c.stops.length, 0);
   paneData.innerHTML =
    '<h2>What this map is built from</h2>' +
-   '<p style="font-size:12px;color:var(--ink-3);margin:0 0 8px">Build 2026-08-12-87354838bc</p>' +
+   '<p style="font-size:12px;color:var(--ink-3);margin:0 0 8px">Build 2026-08-12-098290d5d4</p>' +
    '<p style="font-size:13px;color:var(--ink-2);margin:0 0 10px">Room shapes, corridors and doorways ' +
    'were read automatically off the colour floor plan images. Room numbers come from the scanned ' +
    'official plans, matched onto those shapes. Room names still come from reading the colour ' +
@@ -1564,7 +1565,7 @@ window.__setFloor = fid => drawFloor(fid);
       door positions are all unverified, and some are known to be wrong. Distances are estimates.</p>
     <p class="abp">For official information, use <a href="https://www.ccac.edu" target="_blank"
       rel="noopener">ccac.edu</a> or the wayfinding kiosks at the front entrances.</p>
-    <p class="abp" style="color:var(--ink-3);font-size:12px">Build <span id="abver">2026-08-12-87354838bc</span></p>
+    <p class="abp" style="color:var(--ink-3);font-size:12px">Build <span id="abver">2026-08-12-098290d5d4</span></p>
     <div id="abdata"></div>
   </div>
 </div>
