@@ -85,6 +85,15 @@ header{
 }
 .go:hover{background:var(--maroon-ink)}
 .go:disabled{background:#b9c2ca;cursor:not-allowed}
+.nearest{display:flex;align-items:center;gap:6px;flex-wrap:wrap;width:100%}
+.nearest>span{
+  font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:var(--ink-3);font-weight:700;
+}
+.nearest button{
+  border:1px solid var(--edge);background:var(--surface-2);color:var(--ink-2);
+  padding:4px 10px;border-radius:99px;font-size:12px;font-weight:600;cursor:pointer;
+}
+.nearest button:hover{border-color:var(--maroon);color:var(--maroon);background:var(--maroon-soft)}
 .toggle{display:flex;align-items:center;gap:7px;font-size:13px;white-space:nowrap;cursor:pointer;color:var(--ink-2)}
 .toggle input{width:16px;height:16px;accent-color:var(--maroon);margin:0}
 
@@ -232,6 +241,8 @@ ol.steps li:last-child{border-bottom:0}
   .go{padding:9px 13px}
   .toggle{font-size:12.5px}
   .tabs button{padding:9px 3px;font-size:11px;letter-spacing:.05em}
+  .nearest{gap:5px}
+  .nearest button{padding:4px 8px;font-size:11.5px}
   main{flex-direction:column}
   aside{
     width:auto;border-left:0;border-top:1px solid var(--edge);
@@ -377,6 +388,14 @@ html[data-theme="dark"]{
     </label>
     <button class="go" id="go" disabled>Get directions</button>
   </div>
+  <div class="nearest" id="nearest">
+    <span>Nearest</span>
+    <button data-near="restroom">Restroom</button>
+    <button data-near="elevator">Elevator</button>
+    <button data-near="stairs">Stairs</button>
+    <button data-near="exit">Exit</button>
+    <button data-near="lab">Computer lab</button>
+  </div>
 </header>
 
 <main>
@@ -514,7 +533,7 @@ function findRoom(fid, rid){ return FLOORS[fid].rooms.find(r => r.id === rid) ||
 
 /* Dijkstra over (floor, cell) with 8-neighbour movement inside a floor */
 const SQ2 = Math.SQRT2;
-function findPath(startFid, startIdx, goalFid, goalIdx, stepFree){
+function walkGraph(startFid, startIdx, goalKeys, stepFree){
   const dist = new Map(), prev = new Map();
   const heap = [[0, startFid, startIdx]];
   const sk = key(startFid, startIdx);
@@ -543,14 +562,14 @@ function findPath(startFid, startIdx, goalFid, goalIdx, stepFree){
     }
     return top;
   };
-  const gk = key(goalFid, goalIdx);
   const seen = new Set();
+  let reached = null;
   while (heap.length){
     const [d, fid, idx] = pop();
     const k = key(fid, idx);
     if (seen.has(k)) continue;
     seen.add(k);
-    if (k === gk) break;
+    if (goalKeys.has(k)){ reached = k; break; }
     if (d > dist.get(k)) continue;
     const f = FLOORS[fid], w = decodeWalk(f);
     const gx = idx % f.gw, gy = (idx - gx)/f.gw;
@@ -579,17 +598,36 @@ function findPath(startFid, startIdx, goalFid, goalIdx, stepFree){
       }
     }
   }
-  if (!dist.has(gk)) return null;
+  if (!reached) return null;
+  return {reached, prev, cost:dist.get(reached)};
+}
+
+function rebuild(reachedKey, prev){
   const nodes = [];
-  let cur = [goalFid, goalIdx];
+  const at = k => { const i = k.indexOf(':'); return [k.slice(0,i), +k.slice(i+1)]; };
+  let cur = at(reachedKey);
   for(;;){
     const p = prev.get(key(cur[0], cur[1]));
     nodes.push({fid:cur[0], idx:cur[1], via:p ? p[2] : null});
     if (!p) break;
     cur = [p[0], p[1]];
   }
-  nodes.reverse();
-  return {nodes, cost:dist.get(gk)};
+  return nodes.reverse();
+}
+
+function findPath(startFid, startIdx, goalFid, goalIdx, stepFree){
+  const r = walkGraph(startFid, startIdx, new Set([key(goalFid, goalIdx)]), stepFree);
+  return r ? {nodes:rebuild(r.reached, r.prev), cost:r.cost} : null;
+}
+
+/* One search outward from where you are, stopping at whichever target it reaches first.
+   Nearest therefore means nearest by walking, across floors, not nearest in a straight line. */
+function findNearest(startFid, startIdx, targets, stepFree){
+  const byKey = new Map();
+  for (const t of targets) if (t.idx >= 0) byKey.set(key(t.fid, t.idx), t);
+  if (!byKey.size) return null;
+  const r = walkGraph(startFid, startIdx, new Set(byKey.keys()), stepFree);
+  return r ? {target:byKey.get(r.reached), cost:r.cost} : null;
 }
 
 /* ---------------- search index ---------------- */
@@ -938,6 +976,7 @@ function buildDirections(res, fromRoom, toRoom){
 }
 function roomTitle(r){
   if (!r) return 'your destination';
+  if (r._as) return r._as + (r.code && r.codeSrc !== 'ocr' ? ' (' + r.code + ')' : '');
   if (r.kind === 'entrance') return r.name;
   if (r.name && r.code) return r.name + ' (' + r.code + ')';
   return r.name || r.code || TYPE_LABEL[r.type];
@@ -1237,6 +1276,69 @@ for (const which of ['from','to']){
   }
 }
 function updateGo(){ document.getElementById('go').disabled = !(pick.from && pick.to); }
+
+/* Results are named by category rather than by the room's own label. Room type comes
+   from the drawings' colour key and is dependable; the names are not, and the stair and
+   lift cores mostly have no name at all. min excludes slivers of a larger room. */
+const NEAREST = {
+  restroom: {label:'restroom',     title:'Restroom',     min:700,  pick:r => r.type === 'restroom'},
+  elevator: {label:'elevator',     title:'Elevator',     min:0,    pick:r => r.coreKind === 'elevator'},
+  stairs:   {label:'stairwell',    title:'Stairs',       min:0,    pick:r => r.coreKind === 'stair'},
+  lab:      {label:'computer lab', title:'Computer lab', min:1500, pick:r => r.type === 'lab'},
+  exit:     {label:'way out',      title:'Exit',         entrances:true},
+};
+const nearCache = {};
+function nearTargets(cat){
+  if (nearCache[cat]) return nearCache[cat];
+  const spec = NEAREST[cat], out = [];
+  if (spec.entrances){
+    for (const e of (DATA.entrances || [])){
+      if (!FLOORS[e.floor]) continue;
+      out.push({fid:e.floor, idx:nearestCell(e.floor, e.x, e.y, 26), ent:e.id, name:e.label});
+    }
+  } else {
+    for (const fid of ORDER) for (const r of FLOORS[fid].rooms){
+      if (!spec.pick(r) || !r.door || r.area < (spec.min || 0)) continue;
+      out.push({fid, idx:nearestCell(fid, r.door[0], r.door[1], 20), rid:r.id});
+    }
+  }
+  nearCache[cat] = out.filter(t => t.idx >= 0);
+  return nearCache[cat];
+}
+function doNearest(cat){
+  const spec = NEAREST[cat];
+  if (!pick.from){
+    paneRoute.innerHTML = '<div class="note">Tell me where you are first, in the top box, then ask ' +
+      'for the nearest ' + spec.label + '.</div>';
+    showTab('route');
+    inputs.from.focus();
+    return;
+  }
+  const A = endpoint(pick.from);
+  const ai = nearestCell(A._fid, (A.door || [A.cx, A.cy])[0], (A.door || [A.cx, A.cy])[1], 26);
+  if (ai < 0) return;
+  const stepFree = document.getElementById('stepfree').checked;
+  const here = pick.from.rid;
+  const found = findNearest(A._fid, ai,
+    nearTargets(cat).filter(t => t.rid !== here), stepFree);
+  if (!found){
+    paneRoute.innerHTML = '<div class="note warn">No ' + spec.label + ' could be reached from there ' +
+      (stepFree ? 'without stairs' : '') + '. That usually means a missing stair, lift or wing link ' +
+      'rather than there being none.</div>';
+    showTab('route');
+    return;
+  }
+  const t = found.target;
+  pick.to = t.ent ? {fid:t.fid, ent:t.ent, as:spec.title}
+                  : {fid:t.fid, rid:t.rid, as:spec.title};
+  const B = endpoint(pick.to);
+  inputs.to.value = spec.title + (B.code && B.codeSrc !== 'ocr' ? ' — ' + B.code : '');
+  clears.to.hidden = false;
+  updateGo();
+  doRoute();
+}
+document.querySelectorAll('[data-near]').forEach(b =>
+  b.onclick = () => doNearest(b.dataset.near));
 document.getElementById('go').onclick = doRoute;
 document.getElementById('stepfree').onchange = () => { if (pick.from && pick.to) doRoute(); };
 
@@ -1245,10 +1347,10 @@ function endpoint(p){
   if (p.ent){
     const e = (DATA.entrances || []).find(x => x.id === p.ent);
     return {kind:'entrance', _fid:p.fid, name:e.label, cx:e.x, cy:e.y,
-            door:[e.x, e.y], type:'entrance'};
+            door:[e.x, e.y], type:'entrance', _as:p.as};
   }
   const r = findRoom(p.fid, p.rid);
-  r._fid = p.fid;
+  r._fid = p.fid; r._as = p.as;
   return r;
 }
 function doRoute(){
